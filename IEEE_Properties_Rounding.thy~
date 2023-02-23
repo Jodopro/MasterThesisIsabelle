@@ -1,0 +1,341 @@
+theory JD_Theories_Basics
+imports Conversion_IEEE_Float "HOL-Library.Extended_Real"
+begin
+
+lemma infinity_is_infinity: "is_infinity (plus_infinity)"
+  unfolding is_infinity_def
+  unfolding plus_infinity_def
+  by (metis infinity_simps(3) infinity_simps(5) plus_infinity_def)
+
+lemma pinfinity_unfold[code_unfold]: "x = plus_infinity \<longleftrightarrow> is_infinity x \<and> sign x = 0"
+  by (metis float_neg_sign infinity_is_infinity infinity_simps(1) is_infinity_cases)
+
+lemma ninfinity_unfold[code_unfold]:  "x = minus_infinity \<longleftrightarrow> is_infinity x \<and> sign x = 1"
+  by (metis infinity_is_infinity infinity_simps(1) infinity_simps(2) is_infinity_cases is_infinity_uminus zero_neq_one)
+
+definition extended_valof :: "('e, 'f) float \<Rightarrow> ereal"
+  where "extended_valof x = (if x = (plus_infinity::('e, 'f) float) 
+    then PInfty else (if x = (minus_infinity::('e, 'f) float) 
+    then MInfty else ereal (valof x)))"
+
+
+lemma valof_zerosign: "valof (zerosign s f) = valof f"
+  unfolding zerosign_def by (auto simp: val_zero)
+
+lemma extended_valof_zerosign: "extended_valof (zerosign s f) = extended_valof f"
+  unfolding zerosign_def extended_valof_def 
+  by (smt (verit) float_zero1 float_zero2 infinite_infinity(2) is_finite_def val_zero)
+
+lemma extended_valof_finite: "\<not> is_infinity a \<Longrightarrow> extended_valof a = valof a"
+  unfolding extended_valof_def
+  using infinity_is_infinity by auto
+
+lemma inf_not_zero: 
+    "is_infinity x \<longrightarrow> \<not> is_zero x"
+  using float_distinct(7) by auto
+
+lemma sign_pos_ereal: "sign (x::('e, 'f) float) = 0 \<longrightarrow> extended_valof x \<ge> 0"
+  unfolding extended_valof_def
+  proof (cases "is_infinity x")
+    case True
+    then have "is_infinity x \<Longrightarrow> sign x = 0 \<longrightarrow> x = (plus_infinity::('e, 'f) float)"
+      by (simp add: pinfinity_unfold)
+    then show "is_infinity x \<Longrightarrow> sign x = 0 \<longrightarrow> 0 \<le> (if x = plus_infinity then PInfty else if x = minus_infinity then MInfty else ereal (valof x))" by simp
+  next
+    case False
+    then show "\<not> is_infinity x \<Longrightarrow> sign x = 0 \<longrightarrow> 0 \<le> (if x = plus_infinity then PInfty else if x = minus_infinity then MInfty else ereal (valof x))"
+      by (simp add: ninfinity_unfold valof_nonneg)
+  qed
+
+lemma sign_neg_ereal: "sign (x::('e, 'f) float) = 1 \<longrightarrow> extended_valof x \<le> 0"
+  unfolding extended_valof_def
+  proof (cases "is_infinity x")
+    case True
+    then have "is_infinity x \<Longrightarrow> sign x = 1 \<longrightarrow> x = (minus_infinity::('e, 'f) float)"
+      by (simp add: ninfinity_unfold)
+    then show "is_infinity x \<Longrightarrow> sign x = 1 \<longrightarrow> (if x = plus_infinity then PInfty else if x = minus_infinity then MInfty else ereal (valof x)) \<le> 0" 
+      by (simp add: infinity_simps(1))
+  next
+    case False
+    then show "\<not> is_infinity x \<Longrightarrow> sign x = 1 \<longrightarrow> (if x = plus_infinity then PInfty else if x = minus_infinity then MInfty else ereal (valof x)) \<le> 0"
+      by (simp add: pinfinity_unfold valof_nonpos)
+  qed
+
+(*from illegal_cases2 zero_eq_zero ninfinity_unfold have "b = - \<infinity> \<longrightarrow> valof a \<noteq> 0" by blast
+            moreover from sign_pos_ereal ninfinity_unfold have "sign a \<noteq> sign (- \<infinity>) \<longrightarrow> valof a \<ge> 0"
+              by (metis sign_cases valof_nonneg)
+            ultimately have "sign a \<noteq> sign (- \<infinity>) \<longrightarrow> b = - \<infinity> \<longrightarrow> valof a > 0" by auto
+            then show "sign a \<noteq> sign (- \<infinity>) \<Longrightarrow> \<not> is_infinity a \<Longrightarrow> b = - \<infinity> \<Longrightarrow> 0 < sign (- \<infinity>) \<Longrightarrow> 0 < valof a" by blast 
+*)         
+
+(*lemma inf_diff_zero:
+  assumes "LENGTH('e) > 0" shows
+  "(plus_infinity::('e, 'f) float) > 0" and "(minus_infinity::('e, 'f) float) < 0"
+  subgoal
+  proof-
+    from pinfinity_unfold have a: "\<not>is_nan plus_infinity"
+      using float_distinct(1) by auto
+    from zero_simps is_nan_def have b: "\<not>is_nan 0" by blast
+    from pinfinity_unfold sign_pos_ereal have "is_infinity plus_infinity \<and> sign plus_infinity = 0" by meson
+    with a b fcompare_def zero_simps have "fcompare plus_infinity 0 = Gt" sorry
+    then show ?thesis sorry
+  qed
+  subgoal sorry
+  done*)
+
+lemma real_of_word_bigger_zero: "real_of_word x \<ge> 0"
+  by linarith
+
+lemma zero_val_helper1: 
+  fixes x::"('e, 'f) float" 
+  shows"(-1::real)^x1 * ((2^(x2::nat)) / (2^(x3::nat))) * (1 + (real_of_word x4)/2^LENGTH('f)) \<noteq> 0"
+proof -
+  have a: "(-1::real)^x1 \<noteq> 0" by auto
+  have b: "((2^x2) / (2^x3)) \<noteq> (0::real)" by simp
+  have "\<forall>y. (real_of_word x4)\<ge>0 \<longrightarrow> y>0 \<longrightarrow> (1 + (real_of_word x4)/y) \<noteq> 0"
+    using divide_nonneg_pos by fastforce
+  with real_of_word_bigger_zero have c: "(1 + (real_of_word x4)/2^LENGTH('f)) \<noteq> 0" by auto
+  from a b c show ?thesis by simp
+qed
+
+lemma zero_val_helper2: "valof (x::('e, 'f) float) = 0 \<Longrightarrow> exponent x = 0" 
+proof -
+  assume asm: "valof x = 0"
+  from valof_def have rewrite: "IEEE.exponent x \<noteq> 0 \<Longrightarrow> valof x = (- 1::real) ^ (sign x) * (2 ^ (exponent x) / 2 ^ bias TYPE(('e, 'f) float)) * (1 + real (fraction x) / 2 ^ LENGTH('f))" 
+    by (simp add: valof_eq)
+  have a: "(- 1::real) ^ (sign x) \<noteq> 0" by simp
+  have b: "(2 ^ (exponent x) / 2 ^ bias TYPE(('e, 'f) float)) \<noteq> (0::real)" by fastforce
+  have c: "(1 + real (fraction x) / 2 ^ LENGTH('f)) \<noteq> (0::real)"
+    by (metis add_less_same_cancel1 add_less_same_cancel2 divide_less_0_iff not_one_less_zero of_nat_less_0_iff one_add_one zero_less_divide_iff zero_less_one zero_less_power zero_less_two)
+  from a b c rewrite have "IEEE.exponent x \<noteq> 0 \<Longrightarrow> valof x \<noteq> 0" by force
+  with asm have "exponent x \<noteq> 0 \<Longrightarrow> False" by blast
+  then have "valof x = 0 \<Longrightarrow> exponent x = 0" by blast
+  with asm show ?thesis by blast
+qed
+
+
+lemma zero_val: "valof x = 0 \<longrightarrow> is_zero x"
+  unfolding is_zero_def
+  using zero_val_helper2 valof_def 
+  by (smt (verit) divide_eq_0_iff divisors_zero of_nat_eq_0_iff power_eq_0_iff valof_eq) 
+
+lemma zero_eq_zero: "is_zero x \<longleftrightarrow> valof x = 0"
+  using val_zero zero_val by blast
+
+lemma valof_nonpos_zero: "\<not>is_zero x \<longrightarrow> sign (x::('e, 'f) float) = 1 \<longrightarrow> valof x < 0"
+  by (meson order_le_less valof_nonpos zero_val)
+
+lemma valof_nonneg_zero: "\<not>is_zero x \<longrightarrow> sign (x::('e, 'f) float) = 0 \<longrightarrow> valof x > 0"
+  by (metis nless_le valof_nonneg zero_val)
+
+lemma is_nan_zerosign[simp]: "is_nan (zerosign s a) \<longleftrightarrow> is_nan a"
+  by (metis float_distinct_finite(1) is_finite_def is_finite_zerosign zerosign_def)
+
+lemma abs_less_conv: "\<bar>a+b\<bar> \<le> m \<longleftrightarrow> a+b\<in>{-m..m}" for m :: real
+  by auto
+
+lemma finite_zero: "is_finite 0"
+  by (simp add: is_finite_def)
+
+lemma round_to_ninfinity_not_empty:
+  assumes threshold: "\<bar>a\<bar> \<le> largest TYPE(('e, 'f)float)" and len_e: "1 < LENGTH('e)"
+  shows "{c::('e, 'f) float. is_finite c \<and> valof c \<le> a} \<noteq> {}"
+proof -
+  have fin_bot: "is_finite (bottomfloat::('e, 'f) float)" using finite_bottomfloat by auto
+  from threshold valof_topfloat len_e have "(valof (bottomfloat::('e, 'f) float)) \<le> a"
+    by (simp add: bottomfloat_eq_m_largest)
+  with fin_bot show ?thesis by blast
+qed
+
+lemma round_to_infinity_not_empty:
+  assumes threshold: "\<bar>a\<bar> \<le> largest TYPE(('e, 'f)float)" and len_e: "1 < LENGTH('e)"
+  shows "{c::('e, 'f) float. is_finite c \<and> valof c \<ge> a} \<noteq> {}"
+proof -
+  have fin_top: "is_finite (topfloat::('e, 'f) float)" using finite_topfloat by auto
+  from threshold valof_topfloat have "(valof (topfloat::('e, 'f) float)) \<ge> a"
+    by (metis abs_le_D1 len_e)
+  with fin_top show ?thesis by blast
+qed
+
+lemma extract_set_properties_closest: 
+  assumes not_empty: "{c. P c} \<noteq> {}"
+  shows "P ((closest valof (\<lambda>c. True) {c. P c} a)::('e, 'f) float)"
+proof -
+  from not_empty Hilbert_Choice.someI_ex have "is_closest (valof) {c::('e, 'f) float. P c} a (SOME output. is_closest (valof) {c::('e, 'f) float. P c} a output)"
+    by (metis (no_types, lifting) closest_is_closest) 
+  from is_closest_def have  "\<forall>output. ((is_closest (valof) {c::('e, 'f) float. P c} a output) \<longrightarrow> (P output))"
+    by (metis mem_Collect_eq)
+  then show ?thesis 
+    by (metis closest_is_closest not_empty)
+qed
+
+lemma extract_set_properties_closest_to_ninfinity: 
+  assumes len_e: "1 < LENGTH('e)"
+    and threshold: "\<bar>a\<bar> \<le> largest TYPE(('e, 'f)float)"
+  shows "is_finite ((closest valof (\<lambda>c. True) {c::('e, 'f) float. is_finite c \<and> valof c \<le> a} a)::('e, 'f) float)"
+    and "valof ((closest valof (\<lambda>c. True) {c::('e, 'f) float. is_finite c \<and> valof c \<le> a} a)::('e, 'f) float) \<le> a"
+  subgoal
+  proof -
+    from len_e threshold round_to_ninfinity_not_empty have "{c::('e, 'f) float. is_finite c \<and> valof c \<le> a} \<noteq> {}" by fast
+    with extract_set_properties_closest show ?thesis by (smt (verit, del_insts))
+  qed
+  subgoal
+  proof -
+    from len_e threshold round_to_ninfinity_not_empty have "{c::('e, 'f) float. is_finite c \<and> valof c \<le> a} \<noteq> {}" by fast
+    with extract_set_properties_closest show ?thesis by (smt (verit, del_insts))
+  qed
+  done
+
+lemma extract_set_properties_closest_to_infinity: 
+  assumes len_e: "1 < LENGTH('e)"
+    and threshold: "\<bar>a\<bar> \<le> largest TYPE(('e, 'f)float)"
+  shows "is_finite ((closest valof (\<lambda>c. True) {c::('e, 'f) float. is_finite c \<and> valof c \<ge> a} a)::('e, 'f) float)" 
+    and "valof ((closest valof (\<lambda>c. True) {c::('e, 'f) float. is_finite c \<and> valof c \<ge> a} a)::('e, 'f) float) \<ge> a"
+  subgoal
+  proof -
+    from len_e threshold round_to_infinity_not_empty have "{c::('e, 'f) float. is_finite c \<and> valof c \<ge> a} \<noteq> {}" by fast
+    with extract_set_properties_closest show ?thesis by (smt (verit, del_insts))
+  qed
+  subgoal
+  proof -
+    from len_e threshold round_to_infinity_not_empty have "{c::('e, 'f) float. is_finite c \<and> valof c \<ge> a} \<noteq> {}" by fast
+    with extract_set_properties_closest show ?thesis by (smt (verit, del_insts))
+  qed
+  done
+
+lemma round_to_ninfinity:
+  assumes threshold: "\<bar>a\<bar> \<le> largest TYPE(('e, 'f)float)"
+    and len_e: "1 < LENGTH('e)"
+  shows "valof ((IEEE.round To_ninfinity a)::('e, 'f) float) \<le> a"
+    and "is_finite ((IEEE.round To_ninfinity a)::('e, 'f) float)"
+  using round.simps round_to_ninfinity_not_empty assms extract_set_properties_closest_to_ninfinity apply auto
+  done
+
+lemma round_to_ninfinity_infinite:
+  assumes len_e: "1 < LENGTH('e)"
+  shows "extended_valof ((IEEE.round To_ninfinity a)::('e, 'f) float) \<le> a"
+    and "\<not> is_nan ((IEEE.round To_ninfinity a)::('e, 'f) float)"
+    subgoal
+    proof (cases "\<bar>a\<bar> \<le> largest TYPE(('e, 'f)float)")
+      case True
+      with len_e round_to_ninfinity extended_valof_def show ?thesis
+        by (metis ereal_less_eq(3) infinite_infinity(2) is_finite_uminus)
+    next
+      case False
+      then consider "a > largest TYPE(('e, 'f)float)" | "a < - largest TYPE(('e, 'f)float)"
+        by linarith
+      then show ?thesis proof cases
+        case 1
+        with round.simps False have is_topfloat: "((round To_ninfinity a)::('e, 'f) float) = (topfloat::('e, 'f) float)"  
+          by (smt (verit, ccfv_SIG) finite_topfloat float_val_ge_largest len_e valof_topfloat)
+        then have  largest: "valof ((round To_ninfinity a)::('e, 'f) float) = largest TYPE(('e, 'f)float)"
+          using len_e valof_topfloat by auto
+        with 1 have comparison: "valof ((IEEE.round To_ninfinity a)::('e, 'f) float) \<le> a" 
+          by fastforce
+        from 1 False is_topfloat have "((IEEE.round To_ninfinity a)::('e, 'f) float) \<noteq> plus_infinity \<and> ((IEEE.round To_ninfinity a)::('e, 'f) float) \<noteq> minus_infinity"
+          by (metis finite_topfloat infinite_infinity(1) infinite_infinity(2)) 
+        with extended_valof_def comparison show ?thesis
+          by (metis ereal_less_eq(3))
+      next
+        case 2
+        with round.simps False have is_minfinity: "((round To_ninfinity a)::('e, 'f) float) = (minus_infinity::('e, 'f) float)" by simp
+        with extended_valof_def have "extended_valof ((IEEE.round To_ninfinity a)::('e, 'f) float) = MInfty"
+          by (metis float_neg_sign)
+        then show ?thesis
+          by (metis MInfty_eq_minfinity less_ereal.simps(5) order_less_imp_le) 
+      qed
+    qed
+    unfolding round.simps
+    subgoal
+    proof (cases "\<bar>a\<bar> \<le> largest TYPE(('e, 'f)float)")
+      case True
+      with len_e round_to_ninfinity show ?thesis by fastforce
+    next
+      case False
+      then consider "a > largest TYPE(('e, 'f)float)" | "a < - largest TYPE(('e, 'f)float)"
+        by linarith
+      then show ?thesis proof cases
+        case 1
+        with False round.simps have "((IEEE.round To_ninfinity a)::('e, 'f) float) = (topfloat::('e, 'f) float)"  
+          by (smt (verit, ccfv_SIG) finite_topfloat float_val_ge_largest len_e valof_topfloat)
+        then show ?thesis
+          using finite_topfloat float_distinct_finite(1) by auto
+      next
+        case 2
+        with round.simps False have "((round To_ninfinity a)::('e, 'f) float) = (minus_infinity::('e, 'f) float)" by simp
+        then show ?thesis
+          using float_distinct(1) infinity_is_infinity by auto
+      qed
+    qed
+    done
+
+lemma round_to_infinity:
+  assumes threshold: "\<bar>a\<bar> \<le> largest TYPE(('e, 'f)float)"
+    and len_e: "1 < LENGTH('e)"
+  shows "valof ((IEEE.round To_pinfinity a)::('e, 'f) float) \<ge> a"
+    and "is_finite ((IEEE.round To_pinfinity a)::('e, 'f) float)"
+  using round.simps round_to_infinity_not_empty assms extract_set_properties_closest_to_infinity apply auto
+  done
+
+lemma round_to_infinity_infinite:
+  assumes len_e: "1 < LENGTH('e)"
+  shows "extended_valof ((IEEE.round To_pinfinity a)::('e, 'f) float) \<ge> a"
+    and "\<not> is_nan ((IEEE.round To_pinfinity a)::('e, 'f) float)"
+  subgoal
+    proof (cases "\<bar>a\<bar> \<le> largest TYPE(('e, 'f)float)")
+      case True
+      with len_e round_to_infinity extended_valof_def show ?thesis
+        by (metis ereal_less_eq(3) infinite_infinity(2) is_finite_uminus)
+    next
+      case False
+      then consider "a > largest TYPE(('e, 'f)float)" | "a < - largest TYPE(('e, 'f)float)"
+        by linarith
+      then show ?thesis proof cases
+        case 1
+        with round.simps False have is_pinfinity: "((round To_pinfinity a)::('e, 'f) float) = (plus_infinity::('e, 'f) float)" 
+          by (smt (verit, ccfv_SIG) finite_topfloat float_val_ge_largest len_e valof_topfloat)
+        with extended_valof_def have "extended_valof ((IEEE.round To_pinfinity a)::('e, 'f) float) = PInfty"
+          by metis
+        then show ?thesis
+          by (metis ereal_less_eq(1) infinity_ereal_def) 
+      next
+        case 2
+        with round.simps False have is_bottomfloat: "((round To_pinfinity a)::('e, 'f) float) = - (topfloat::('e, 'f) float)"  
+          by (smt (verit, ccfv_SIG) finite_topfloat float_val_ge_largest len_e valof_topfloat)
+        then have  largest: "valof ((round To_pinfinity a)::('e, 'f) float) = - largest TYPE(('e, 'f)float)"
+          using len_e bottomfloat_eq_m_largest by auto
+        with 2 have comparison: "valof ((IEEE.round To_pinfinity a)::('e, 'f) float) \<ge> a" 
+          by (metis linorder_not_less nle_le)
+        from 2 False have "((IEEE.round To_pinfinity a)::('e, 'f) float) \<noteq> plus_infinity \<and> ((IEEE.round To_pinfinity a)::('e, 'f) float) \<noteq> minus_infinity"
+          by (metis finite_bottomfloat infinite_infinity(1) infinite_infinity(2) is_bottomfloat)
+        with extended_valof_def comparison show ?thesis
+          by (metis ereal_le_le ereal_le_real)
+      qed
+    qed
+    unfolding round.simps
+    subgoal
+    proof (cases "\<bar>a\<bar> \<le> largest TYPE(('e, 'f)float)")
+      case True
+      with len_e round_to_infinity show ?thesis by fastforce
+    next
+      case False
+      then consider "a > largest TYPE(('e, 'f)float)" | "a < - largest TYPE(('e, 'f)float)"
+        by linarith
+      then show ?thesis proof cases
+        case 1
+        with round.simps False have is_pinfinity: "((round To_pinfinity a)::('e, 'f) float) = (plus_infinity::('e, 'f) float)" 
+          by (smt (verit, ccfv_SIG) finite_topfloat float_val_ge_largest len_e valof_topfloat)
+        with infinity_is_infinity have "is_infinity ((round To_pinfinity a)::('e, 'f) float)" by simp
+        then show ?thesis
+          using float_distinct(1) by force
+      next
+        case 2
+        with round.simps False have is_bottomfloat: "((round To_pinfinity a)::('e, 'f) float) = - (topfloat::('e, 'f) float)"  
+          by (smt (verit, ccfv_SIG) finite_topfloat float_val_ge_largest len_e valof_topfloat)
+        then show ?thesis
+          using float_distinct_finite(1) finite_bottomfloat by auto
+      qed
+    qed
+    done
+
+end
