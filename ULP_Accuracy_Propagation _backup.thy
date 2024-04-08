@@ -18,45 +18,33 @@ proof -
   ultimately show " (is_finite a \<and> \<bar>valof a - r\<bar> \<le> e * ulp a) = (is_finite b \<and> \<bar>valof b - r\<bar> \<le> e * ulp b)" by presburger
 qed
 
-context 
-  fixes a_float b_float c_float::"('e, 'f)float"
-    and a_real b_real c_real::"real"
-    and a_accuracy b_accuracy c_accuracy::"real"
-  assumes a_rel:"ulp_accuracy a_real a_float a_accuracy"
-      and b_rel:"ulp_accuracy b_real b_float b_accuracy"
-      and c_rel:"ulp_accuracy c_real c_float c_accuracy"
-      and len_e: "1 < LENGTH('e)"
-      and len_f: "1 < LENGTH('f)"
-      and sign_a: "sign a_float = 0"
-      and sign_b: "sign b_float = 0"
-      and sign_c: "sign c_float = 0"
-begin
-
-lemmas context_assumptions = a_rel b_rel c_rel len_e len_f sign_a sign_b sign_c
-
 lemma addition_error_propagation_distance:
-  assumes "\<bar>valof a_float + valof b_float\<bar> < threshold TYPE(('e, 'f) float)"
+  assumes a_rel:"ulp_accuracy a_real (a_float::('e,'f) float) a_accuracy"
+  and "ulp_accuracy b_real (b_float::('e,'f) float) b_accuracy"
+  and "1 < LENGTH('e)"
+  and "1 < LENGTH('f)"
+  and "sign a_float = 0" and "sign b_float = 0"
+  and "\<bar>valof a_float + valof b_float\<bar> < threshold TYPE(('e, 'f) float)"
   shows "\<bar>(valof a_float + valof b_float) - (a_real+b_real)\<bar> \<le> (a_accuracy+b_accuracy) * ulp (fadd To_nearest a_float b_float)"
 proof -
   have step_1: "valof (fadd To_nearest a_float b_float) = valof (
                  round To_nearest (valof a_float + valof b_float)::('e,'f) float)" 
     apply(simp add:fadd_def valof_zerosign del:round.simps)
-    using assms context_assumptions ulp_accuracy_def float_distinct_finite by blast
+    using assms ulp_accuracy_def float_distinct_finite by blast
   moreover obtain rounded_sum where rounded_sum_def: "rounded_sum = (round To_nearest (valof a_float + valof b_float)::('e,'f) float)" by blast 
   ultimately have ulp_same: "ulp (fadd To_nearest a_float b_float) = ulp rounded_sum" using abs_valof_e_exp_e ulp_equivelance by metis 
-  from assms context_assumptions ulp_accuracy_def have finite_a_b: "is_finite a_float \<and> is_finite b_float" by blast
-  with addition_rounding_increases valof_nonneg assms context_assumptions rounded_sum_def have "valof a_float \<le> valof rounded_sum \<and> valof b_float \<le> valof rounded_sum"
+  from assms ulp_accuracy_def have finite_a_b: "is_finite a_float \<and> is_finite b_float" by blast
+  with addition_rounding_increases valof_nonneg assms rounded_sum_def have "valof a_float \<le> valof rounded_sum \<and> valof b_float \<le> valof rounded_sum"
     by (metis add.commute)
-  with valof_nonneg assms context_assumptions abs_of_nonneg have "\<bar>valof a_float\<bar> \<le> \<bar>valof rounded_sum\<bar> \<and> \<bar>valof b_float\<bar> \<le> \<bar>valof rounded_sum\<bar>"
+  with valof_nonneg assms abs_of_nonneg have "\<bar>valof a_float\<bar> \<le> \<bar>valof rounded_sum\<bar> \<and> \<bar>valof b_float\<bar> \<le> \<bar>valof rounded_sum\<bar>"
     by (smt (verit, del_insts))
-  with abs_valof_ge_exp_ge exp_ge_ulp_ge assms context_assumptions ulp_accuracy_non_negative have 
+  with abs_valof_ge_exp_ge exp_ge_ulp_ge assms ulp_accuracy_non_negative have 
     "a_accuracy * ulp a_float \<le> a_accuracy * ulp rounded_sum \<and> b_accuracy * ulp b_float \<le> b_accuracy * ulp rounded_sum"
     using mult_left_mono by metis
-  moreover from assms context_assumptions ulp_accuracy_def have "\<bar>valof a_float - a_real\<bar> \<le> a_accuracy * ulp a_float \<and> \<bar>valof b_float - b_real\<bar> \<le> b_accuracy * ulp b_float" by fast
+  moreover from assms ulp_accuracy_def have "\<bar>valof a_float - a_real\<bar> \<le> a_accuracy * ulp a_float \<and> \<bar>valof b_float - b_real\<bar> \<le> b_accuracy * ulp b_float" by fast
   ultimately have rounded_sum_dist: "\<bar>(valof a_float + valof b_float) - (a_real+b_real)\<bar> \<le> (a_accuracy+b_accuracy) * ulp rounded_sum" by argo
   with ulp_same show ?thesis by presburger
 qed
-
 
 lemma addition_error_propagation_ulp_accuracy:
   assumes "ulp_accuracy a_real (a_float::('e,'f) float) a_accuracy"
@@ -89,6 +77,7 @@ qed
 
 lemma exp_0_valof_le_1:
   assumes "exponent (a::('e,'f) float) = 0"
+  and "1 < LENGTH('e)"
 shows "\<bar>valof a\<bar> \<le> 1"
   using abs_valof_max[where x="a"] apply(simp add:bias_def assms)
   subgoal proof -
@@ -98,96 +87,103 @@ shows "\<bar>valof a\<bar> \<le> 1"
       by (simp add: frac_le)
     show "\<bar>valof a\<bar> < (2::real) / (2::real) ^ ((2::nat) ^ (LENGTH('e) - Suc (0::nat)) - Suc (0::nat)) \<Longrightarrow>
     \<bar>valof a\<bar> \<le> (1::real)" apply(induction "LENGTH('e)") apply auto using e_ge 
-      by (smt (verit) One_nat_def context_assumptions(4) divide_le_eq_1_pos less_2_cases_iff one_less_power self_le_power zero_less_diff)
+      by (smt (verit) One_nat_def assms(2) divide_le_eq_1_pos less_2_cases_iff one_less_power self_le_power zero_less_diff)
   qed done
 
 lemma multiplication_error_propagation1_distance:
-  assumes "ulp_accuracy a_r (a_f::('e,'f) float) a_a"
-  and "ulp_accuracy b_r (b_f::('e,'f) float) b_a"
-  and "exponent a_f \<noteq> 0"
-  and "exponent b_f = 0"
-  and "a_r \<le> 1"
-  and "a_r \<ge> 0"
-  and "sign a_f = 0" and "sign b_f = 0"
-  and "\<bar>valof a_f * valof b_f\<bar> < threshold TYPE(('e, 'f) IEEE.float)"
-shows "\<bar>(valof a_f * valof b_f) - (a_r*b_r)\<bar> \<le> (2*a_a+b_a) * ulp (fmul To_nearest a_f b_f)"
+  assumes "ulp_accuracy a_real (a_float::('e,'f) float) a_accuracy"
+  and "ulp_accuracy b_real (b_float::('e,'f) float) b_accuracy"
+  and "exponent a_float \<noteq> 0"
+  and "exponent b_float = 0"
+  and "a_real \<le> 1"
+  and "a_real \<ge> 0"
+  and "1 < LENGTH('e)"
+  and "1 < LENGTH('f)"
+  and "sign a_float = 0" and "sign b_float = 0"
+  and "\<bar>valof a_float * valof b_float\<bar> < threshold TYPE(('e, 'f) IEEE.float)"
+shows "\<bar>(valof a_float * valof b_float) - (a_real*b_real)\<bar> \<le> (2*a_accuracy+b_accuracy) * ulp (fmul To_nearest a_float b_float)"
 proof -
-  from assms context_assumptions ulp_accuracy_to_rel_accuracy have "rel_accuracy a_r a_f a_a" by blast
-  then have "\<exists>(d::real). (a_r = (1+d)*valof a_f \<and> \<bar>d\<bar>\<le> a_a / (2::real) ^ LENGTH('f))" using rel_accuracy_to_factor assms context_assumptions ulp_accuracy_non_negative by blast
-  then obtain d1 where d1_def: "a_r = (1+d1)*valof a_f \<and> \<bar>d1\<bar>\<le> a_a / (2::real) ^ LENGTH('f)" by presburger
-  from assms context_assumptions ulp_accuracy_def have "\<bar>valof b_f - b_r\<bar> \<le> b_a * ulp b_f" by blast
-  then have "\<exists>d. (b_r = valof b_f + d \<and> \<bar>d\<bar> \<le> b_a * ulp b_f)"
+  from assms ulp_accuracy_to_rel_accuracy have "rel_accuracy a_real a_float a_accuracy" by blast
+  then have "\<exists>(d::real). (a_real = (1+d)*valof a_float \<and> \<bar>d\<bar>\<le> a_accuracy / (2::real) ^ LENGTH('f))" using rel_accuracy_to_factor assms ulp_accuracy_non_negative by blast
+  then obtain d1 where d1_def: "a_real = (1+d1)*valof a_float \<and> \<bar>d1\<bar>\<le> a_accuracy / (2::real) ^ LENGTH('f)" by presburger
+  from assms ulp_accuracy_def have "\<bar>valof b_float - b_real\<bar> \<le> b_accuracy * ulp b_float" by blast
+  then have "\<exists>d. (b_real = valof b_float + d \<and> \<bar>d\<bar> \<le> b_accuracy * ulp b_float)"
     by (metis abs_minus_commute add_diff_cancel_left' add_diff_eq)
-  then obtain d2 where d2_def: "b_r = valof b_f + d2 \<and> \<bar>d2\<bar> \<le> b_a * ulp b_f" by blast
-  then have "a_r*b_r=a_r*valof b_f + a_r*d2" by algebra
-  then have "a_r*b_r \<le> a_r*valof b_f + \<bar>a_r*d2\<bar> \<and> a_r*valof b_f - \<bar>a_r*d2\<bar> \<le> a_r*b_r" by argo
-  moreover from assms have "\<bar>a_r*d2\<bar> \<le> \<bar>d2\<bar>"
+  then obtain d2 where d2_def: "b_real = valof b_float + d2 \<and> \<bar>d2\<bar> \<le> b_accuracy * ulp b_float" by blast
+  then have "a_real*b_real=a_real*valof b_float + a_real*d2" by algebra
+  then have "a_real*b_real \<le> a_real*valof b_float + \<bar>a_real*d2\<bar> \<and> a_real*valof b_float - \<bar>a_real*d2\<bar> \<le> a_real*b_real" by argo
+  moreover from assms have "\<bar>a_real*d2\<bar> \<le> \<bar>d2\<bar>"
     by (metis abs_mult_pos' abs_not_less_zero mult_le_cancel_right2)
-  ultimately have "a_r*b_r \<le> a_r*valof b_f + \<bar>d2\<bar> \<and> a_r*valof b_f - \<bar>d2\<bar> \<le> a_r*b_r" by argo
-  with d1_def have "a_r*b_r - \<bar>d2\<bar> \<le> (1+d1)*valof a_f*valof b_f \<and> (1+d1)*valof a_f*valof b_f \<le> a_r*b_r + \<bar>d2\<bar>" by simp
-  then have ge_le: "a_r*b_r - \<bar>d2\<bar> - \<bar>d1*valof a_f*valof b_f\<bar> \<le> valof a_f*valof b_f \<and> valof a_f*valof b_f \<le> a_r*b_r + \<bar>d2\<bar> + \<bar>d1*valof a_f*valof b_f\<bar>" by argo
+  ultimately have "a_real*b_real \<le> a_real*valof b_float + \<bar>d2\<bar> \<and> a_real*valof b_float - \<bar>d2\<bar> \<le> a_real*b_real" by argo
+  with d1_def have "a_real*b_real - \<bar>d2\<bar> \<le> (1+d1)*valof a_float*valof b_float \<and> (1+d1)*valof a_float*valof b_float \<le> a_real*b_real + \<bar>d2\<bar>" by simp
+  then have ge_le: "a_real*b_real - \<bar>d2\<bar> - \<bar>d1*valof a_float*valof b_float\<bar> \<le> valof a_float*valof b_float \<and> valof a_float*valof b_float \<le> a_real*b_real + \<bar>d2\<bar> + \<bar>d1*valof a_float*valof b_float\<bar>" by argo
 
-  obtain rounded_mul where rounded_mul_def: "rounded_mul = (round To_nearest (valof a_f * valof b_f)::('e,'f) float)" by blast 
-  with rounding_0_5_ulp ulp_accuracy_def assms context_assumptions have rounded_mul_d: "\<bar>valof rounded_mul - (valof a_f * valof b_f)\<bar> \<le> 0.5 * ulp rounded_mul" by fast  
+  obtain rounded_mul where rounded_mul_def: "rounded_mul = (round To_nearest (valof a_float * valof b_float)::('e,'f) float)" by blast 
+  with rounding_0_5_ulp ulp_accuracy_def assms have rounded_mul_d: "\<bar>valof rounded_mul - (valof a_float * valof b_float)\<bar> \<le> 0.5 * ulp rounded_mul" by fast  
   moreover from is_finite_closest rounded_mul_def assms have fin_rounded_mul: "is_finite rounded_mul" by auto
-  ultimately have "ulp_accuracy (valof a_f * valof b_f) rounded_mul 0.5" using ulp_accuracy_def by blast
-   have step_1: "valof (fmul To_nearest a_f b_f) = valof (
-                 round To_nearest (valof a_f * valof b_f)::('e,'f) float)" 
+  ultimately have "ulp_accuracy (valof a_float * valof b_float) rounded_mul 0.5" using ulp_accuracy_def by blast
+   have step_1: "valof (fmul To_nearest a_float b_float) = valof (
+                 round To_nearest (valof a_float * valof b_float)::('e,'f) float)" 
     apply(simp add:fmul_def valof_zerosign del:round.simps)
-    using assms context_assumptions ulp_accuracy_def float_distinct_finite by blast
-  with rounded_mul_def have ulp_same: "ulp (fmul To_nearest a_f b_f) = ulp rounded_mul" using abs_valof_e_exp_e exp_e_ulp_e by metis
+    using assms ulp_accuracy_def float_distinct_finite by blast
+  with rounded_mul_def have ulp_same: "ulp (fmul To_nearest a_float b_float) = ulp rounded_mul" using abs_valof_e_exp_e exp_e_ulp_e by metis
   
-  from rounding_bounds rounded_mul_def fin_rounded_mul have "\<bar>valof a_f*valof b_f\<bar>
+  from rounding_bounds rounded_mul_def fin_rounded_mul have "\<bar>valof a_float*valof b_float\<bar>
     \<le> (2::real) * (2::real) ^ IEEE.exponent rounded_mul /
       (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat))"
     by fastforce
   moreover have "(2::real) * (2::real) ^ IEEE.exponent rounded_mul \<le> (2::real) * (2::real) ^ (max (exponent rounded_mul) 1)" by force
-  ultimately have  "\<bar>valof a_f*valof b_f\<bar>
+  ultimately have  "\<bar>valof a_float*valof b_float\<bar>
     \<le> (2::real) * (2::real) ^ (max (exponent rounded_mul) 1) /
       (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat))"
     by (smt (verit) divide_right_mono zero_le_power)
-  moreover from assms context_assumptions ulp_accuracy_non_negative have "a_a / (2::real) ^ LENGTH('f) \<ge> 0" by fastforce
-  ultimately have "(a_a / (2::real) ^ LENGTH('f)) * \<bar>valof a_f*valof b_f\<bar>
-    \<le> (a_a / (2::real) ^ LENGTH('f)) * (2::real) * (2::real) ^ (max (exponent rounded_mul) 1) /
+  moreover from assms ulp_accuracy_non_negative have "a_accuracy / (2::real) ^ LENGTH('f) \<ge> 0" by fastforce
+  ultimately have "(a_accuracy / (2::real) ^ LENGTH('f)) * \<bar>valof a_float*valof b_float\<bar>
+    \<le> (a_accuracy / (2::real) ^ LENGTH('f)) * (2::real) * (2::real) ^ (max (exponent rounded_mul) 1) /
       (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat))" 
-    using mult_left_mono[where a="\<bar>valof a_f*valof b_f\<bar>" and b="(2::real) * (2::real) ^ (max (exponent rounded_mul) 1) /
-      (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat))" and c="a_a / (2::real) ^ LENGTH('f)"] by auto
-  with d1_def have "\<bar>d1\<bar> * \<bar>valof a_f*valof b_f\<bar>
-    \<le> (a_a / (2::real) ^ LENGTH('f)) * (2::real) * (2::real) ^ (max (exponent rounded_mul) 1) /
-      (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat))" using mult_left_mono[where a="\<bar>d1\<bar>" and b="a_a / (2::real) ^ LENGTH('f)" and  c="\<bar>valof a_f*valof b_f\<bar>"] by argo
-  then have "\<bar>d1\<bar> * \<bar>valof a_f*valof b_f\<bar>
-    \<le> a_a  * (2::real) * (2::real) ^ (max (exponent rounded_mul) 1) /
+    using mult_left_mono[where a="\<bar>valof a_float*valof b_float\<bar>" and b="(2::real) * (2::real) ^ (max (exponent rounded_mul) 1) /
+      (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat))" and c="a_accuracy / (2::real) ^ LENGTH('f)"] by auto
+  with d1_def have "\<bar>d1\<bar> * \<bar>valof a_float*valof b_float\<bar>
+    \<le> (a_accuracy / (2::real) ^ LENGTH('f)) * (2::real) * (2::real) ^ (max (exponent rounded_mul) 1) /
+      (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat))" using mult_left_mono[where a="\<bar>d1\<bar>" and b="a_accuracy / (2::real) ^ LENGTH('f)" and  c="\<bar>valof a_float*valof b_float\<bar>"] by argo
+  then have "\<bar>d1\<bar> * \<bar>valof a_float*valof b_float\<bar>
+    \<le> a_accuracy  * (2::real) * (2::real) ^ (max (exponent rounded_mul) 1) /
       ((2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat)) * (2::real) ^ LENGTH('f))" by argo
-  then have "\<bar>d1\<bar> * \<bar>valof a_f*valof b_f\<bar>
-    \<le> a_a  * (2::real) * (2::real) ^ (max (exponent rounded_mul) 1) /
+  then have "\<bar>d1\<bar> * \<bar>valof a_float*valof b_float\<bar>
+    \<le> a_accuracy  * (2::real) * (2::real) ^ (max (exponent rounded_mul) 1) /
       (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) +  LENGTH('f))" by(simp add:  ulp_divisor_rewrite)
-  then have a_acc_to_ulp: "\<bar>d1 * valof a_f*valof b_f\<bar>
-    \<le> a_a  * (2::real) * ulp rounded_mul" by(simp add:ulp_equivelance abs_mult )
+  then have a_acc_to_ulp: "\<bar>d1 * valof a_float*valof b_float\<bar>
+    \<le> a_accuracy  * (2::real) * ulp rounded_mul" by(simp add:ulp_equivelance abs_mult )
 
-  from assms have "exponent b_f \<le> exponent rounded_mul" by linarith
-  then have "ulp b_f \<le> ulp rounded_mul" by(simp add:exp_ge_ulp_ge) 
-  with assms context_assumptions ulp_accuracy_non_negative d2_def have  b_acc_to_ulp:  "\<bar>d2\<bar> \<le> b_a * ulp rounded_mul"
+  from assms have "exponent b_float \<le> exponent rounded_mul" by linarith
+  then have "ulp b_float \<le> ulp rounded_mul" by(simp add:exp_ge_ulp_ge) 
+  with assms ulp_accuracy_non_negative d2_def have  b_acc_to_ulp:  "\<bar>d2\<bar> \<le> b_accuracy * ulp rounded_mul"
     by (metis dual_order.trans ordered_comm_semiring_class.comm_mult_left_mono)
 
-  from  a_acc_to_ulp  b_acc_to_ulp ge_le have "a_r*b_r - ((2::real)*a_a+b_a) * ulp rounded_mul \<le> valof a_f*valof b_f \<and> valof a_f*valof b_f \<le> a_r*b_r + (2*a_a+b_a) * ulp rounded_mul" by argo
-  then have rounded_mul_dist: "\<bar>valof a_f*valof b_f - a_r*b_r\<bar> \<le> ((2::real)*a_a+b_a) * ulp rounded_mul" by force
-  from is_finite_closest have "is_finite (closest valof (\<lambda>a::('e, 'f) IEEE.float. even (fraction a)) (Collect is_finite) (valof a_f + valof b_f))" by blast
+  from  a_acc_to_ulp  b_acc_to_ulp ge_le have "a_real*b_real - ((2::real)*a_accuracy+b_accuracy) * ulp rounded_mul \<le> valof a_float*valof b_float \<and> valof a_float*valof b_float \<le> a_real*b_real + (2*a_accuracy+b_accuracy) * ulp rounded_mul" by argo
+  then have rounded_mul_dist: "\<bar>valof a_float*valof b_float - a_real*b_real\<bar> \<le> ((2::real)*a_accuracy+b_accuracy) * ulp rounded_mul" by force
+  from is_finite_closest have "is_finite (closest valof (\<lambda>a::('e, 'f) IEEE.float. even (fraction a)) (Collect is_finite) (valof a_float + valof b_float))" by blast
   with ulp_same fin_rounded_mul rounded_mul_dist show ?thesis by presburger
 qed
 
 lemma multiplication_error_propagation2_distance:
-  assumes "exponent a_float = 0"
+  assumes "ulp_accuracy a_real (a_float::('e,'f) float) a_accuracy"
+  and "ulp_accuracy b_real (b_float::('e,'f) float) b_accuracy"
+  and "exponent a_float = 0"
   and "exponent b_float = 0"
   and "a_real \<le> 1"
   and "a_real \<ge> 0"
+  and "1 < LENGTH('e)"
+  and "1 < LENGTH('f)"
+  and "sign a_float = 0" and "sign b_float = 0"
   and "\<bar>valof a_float * valof b_float\<bar> < threshold TYPE(('e, 'f) IEEE.float)"
 shows "\<bar>(valof a_float * valof b_float) - (a_real*b_real)\<bar> \<le> (a_accuracy+b_accuracy) * ulp (fmul To_nearest a_float b_float)"
 proof -
-  from a_rel ulp_accuracy_def have "\<exists>d. (a_real = valof a_float + d \<and> \<bar>d\<bar> \<le> a_accuracy * ulp a_float)"
-    by (metis abs_minus_commute add.commute diff_add_cancel)
+  from assms ulp_accuracy_def have "\<exists>d. (a_real = valof a_float + d \<and> \<bar>d\<bar> \<le> a_accuracy * ulp a_float)"
+    by (metis abs_minus_commute add_diff_cancel_left' add_diff_eq)
   then obtain d1 where d1_def: "a_real = valof a_float + d1 \<and> \<bar>d1\<bar> \<le> a_accuracy * ulp a_float" by blast
-  from b_rel ulp_accuracy_def have "\<exists>d. (b_real = valof b_float + d \<and> \<bar>d\<bar> \<le> b_accuracy * ulp b_float)"
-    by (metis abs_minus_commute add.commute diff_add_cancel)
+  from assms ulp_accuracy_def have "\<exists>d. (b_real = valof b_float + d \<and> \<bar>d\<bar> \<le> b_accuracy * ulp b_float)"
+    by (metis abs_minus_commute add_diff_cancel_left' add_diff_eq)
   then obtain d2 where d2_def: "b_real = valof b_float + d2 \<and> \<bar>d2\<bar> \<le> b_accuracy * ulp b_float" by blast
   then have "a_real*b_real = a_real*valof b_float + a_real*d2" by algebra
   with assms have "a_real*b_real - \<bar>d2\<bar> \<le> a_real*valof b_float \<and> a_real*valof b_float \<le> a_real*b_real + \<bar>d2\<bar>"
@@ -195,26 +191,26 @@ proof -
   with d1_def have "a_real*b_real - \<bar>d2\<bar> \<le>valof a_float*valof b_float + d1*valof b_float \<and> valof a_float*valof b_float + d1*valof b_float\<le> a_real*b_real + \<bar>d2\<bar>" by (metis (no_types, opaque_lifting) distrib_right)
   moreover from assms exp_0_valof_le_1 have "\<bar>d1\<bar>*valof b_float \<le>\<bar>d1\<bar>"
     by (smt (verit, ccfv_SIG) mult_less_cancel_left mult_less_cancel_left1)
-  moreover with valof_nonneg assms context_assumptions have "\<bar>d1*valof b_float\<bar> \<le>\<bar>d1\<bar>" by (metis abs_mult_pos)
+  moreover with valof_nonneg assms have "\<bar>d1*valof b_float\<bar> \<le>\<bar>d1\<bar>" by (metis abs_mult_pos)
   ultimately have p1: "a_real*b_real - \<bar>d2\<bar> - \<bar>d1\<bar> \<le>valof a_float*valof b_float \<and> valof a_float*valof b_float\<le> a_real*b_real + \<bar>d2\<bar> + \<bar>d1\<bar>" by argo
 
 
   obtain rounded_mul where rounded_mul_def: "rounded_mul = (round To_nearest (valof a_float * valof b_float)::('e,'f) float)" by blast 
-  with rounding_0_5_ulp ulp_accuracy_def assms context_assumptions have rounded_mul_d: "\<bar>valof rounded_mul - (valof a_float * valof b_float)\<bar> \<le> 0.5 * ulp rounded_mul" by fast  
+  with rounding_0_5_ulp ulp_accuracy_def assms have rounded_mul_d: "\<bar>valof rounded_mul - (valof a_float * valof b_float)\<bar> \<le> 0.5 * ulp rounded_mul" by fast  
   moreover from is_finite_closest rounded_mul_def assms have fin_rounded_mul: "is_finite rounded_mul" by auto
   ultimately have "ulp_accuracy (valof a_float * valof b_float) rounded_mul 0.5" using ulp_accuracy_def by blast
   have step_1: "valof (fmul To_nearest a_float b_float) = valof (
                  round To_nearest (valof a_float * valof b_float)::('e,'f) float)" 
     apply(simp add:fmul_def valof_zerosign del:round.simps)
-    using assms ulp_accuracy_def float_distinct_finite context_assumptions by blast
+    using assms ulp_accuracy_def float_distinct_finite by blast
   with rounded_mul_def have ulp_same: "ulp (fmul To_nearest a_float b_float) = ulp rounded_mul" using abs_valof_e_exp_e exp_e_ulp_e by metis
   
   
   from assms have "ulp b_float \<le> ulp rounded_mul" by(simp add:exp_ge_ulp_ge)
-  with assms context_assumptions ulp_accuracy_non_negative d2_def have  b_acc_to_ulp:  "\<bar>d2\<bar> \<le> b_accuracy * ulp rounded_mul"
+  with assms ulp_accuracy_non_negative d2_def have  b_acc_to_ulp:  "\<bar>d2\<bar> \<le> b_accuracy * ulp rounded_mul"
     by (metis dual_order.trans ordered_comm_semiring_class.comm_mult_left_mono)
   from assms have "ulp a_float \<le> ulp rounded_mul" by(simp add:exp_ge_ulp_ge)
-  with assms context_assumptions ulp_accuracy_non_negative d1_def have a_acc_to_ulp:  "\<bar>d1\<bar> \<le> a_accuracy * ulp rounded_mul"
+  with assms ulp_accuracy_non_negative d1_def have a_acc_to_ulp:  "\<bar>d1\<bar> \<le> a_accuracy * ulp rounded_mul"
     by (metis dual_order.trans ordered_comm_semiring_class.comm_mult_left_mono)
   from p1 a_acc_to_ulp b_acc_to_ulp have "a_real*b_real - (a_accuracy+b_accuracy) * ulp rounded_mul  \<le>valof a_float*valof b_float \<and> valof a_float*valof b_float\<le> a_real*b_real + (a_accuracy+b_accuracy) * ulp rounded_mul" by argo
   then have rounded_mul_dist:"\<bar>valof a_float*valof b_float - a_real*b_real\<bar> \<le> (a_accuracy+b_accuracy) * ulp rounded_mul" by force
@@ -270,66 +266,66 @@ qed
 
 
 lemma multiplication_error_propagation3_case1_helper_general:
-  assumes case1: "exponent (rounded_mul::('e, 'f) float) + bias TYPE(('e, 'f) float) \<ge> exponent (a::('e, 'f) float) + exponent (b::('e, 'f) float) + (n::nat)"
-  and "exponent a \<noteq> 0"
-  and "exponent b \<noteq> 0"
-  and d1_def: "\<bar>d1\<bar> \<le> a_a * ulp a"
-shows "\<bar>valof b * d1\<bar> \<le> 
-          ((1::real) + real (fraction b) / (2::real) ^ LENGTH('f)) * a_a * ulp rounded_mul / (2::real)^n"
+  assumes case1: "exponent (rounded_mul::('e, 'f) float) + bias TYPE(('e, 'f) float) \<ge> exponent (a_float::('e, 'f) float) + exponent (b_float::('e, 'f) float) + (n::nat)"
+  and "exponent a_float \<noteq> 0"
+  and "exponent b_float \<noteq> 0"
+  and d1_def: "\<bar>d1\<bar> \<le> a_accuracy * ulp a_float"
+shows "\<bar>valof b_float * d1\<bar> \<le> 
+          ((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy * ulp rounded_mul / (2::real)^n"
 proof -
-  from d1_def have "\<bar>valof b * d1\<bar> \<le> \<bar>valof b\<bar> * a_a * ulp a" apply(simp add:abs_mult ) using mult_le_cancel_left[where c="\<bar>valof b\<bar>"] by force
-  with assms have"\<bar>valof b * d1\<bar> \<le> (2::real) ^ exponent b / (2::real) ^ bias TYPE(('e, 'f) float) *
-          ((1::real) + real (fraction b) / (2::real) ^ LENGTH('f)) * a_a * (2::real) ^ exponent a /
+  from d1_def have "\<bar>valof b_float * d1\<bar> \<le> \<bar>valof b_float\<bar> * a_accuracy * ulp a_float" apply(simp add:abs_mult ) using mult_le_cancel_left[where c="\<bar>valof b_float\<bar>"] by force
+  with assms have"\<bar>valof b_float * d1\<bar> \<le> (2::real) ^ exponent b_float / (2::real) ^ bias TYPE(('e, 'f) float) *
+          ((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy * (2::real) ^ exponent a_float /
 (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f))" by(simp add:abs_valof_eq ulp_equivelance)
-  then have step1:  "\<bar>valof b * d1\<bar> \<le> (2::real) ^ exponent b * (2::real) ^ exponent a / (2::real) ^ bias TYPE(('e, 'f) float) *
-          ((1::real) + real (fraction b) / (2::real) ^ LENGTH('f)) * a_a /
+  then have step1:  "\<bar>valof b_float * d1\<bar> \<le> (2::real) ^ exponent b_float * (2::real) ^ exponent a_float / (2::real) ^ bias TYPE(('e, 'f) float) *
+          ((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy /
 (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f))" by argo
 
-  from case1 have "(2::real) ^ exponent rounded_mul * (2::real) ^ bias TYPE(('e, 'f) float) \<ge> (2::real) ^ exponent a * (2::real) ^ exponent b * (2::real)^n" using power_add
+  from case1 have "(2::real) ^ exponent rounded_mul * (2::real) ^ bias TYPE(('e, 'f) float) \<ge> (2::real) ^ exponent a_float * (2::real) ^ exponent b_float * (2::real)^n" using power_add
     by (metis exp_less)
-  then have "(2::real) ^ exponent rounded_mul * (2::real) ^ bias TYPE(('e, 'f) float) / (2::real)^n \<ge> (2::real) ^ exponent a * (2::real) ^ exponent b"
-    using mult_imp_div_pos_le[where y="(2::real)^n" and z="(2::real) ^ exponent rounded_mul * (2::real) ^ bias TYPE(('e, 'f) float)" and x="(2::real) ^ exponent a * (2::real) ^ exponent b"]
+  then have "(2::real) ^ exponent rounded_mul * (2::real) ^ bias TYPE(('e, 'f) float) / (2::real)^n \<ge> (2::real) ^ exponent a_float * (2::real) ^ exponent b_float"
+    using mult_imp_div_pos_le[where y="(2::real)^n" and z="(2::real) ^ exponent rounded_mul * (2::real) ^ bias TYPE(('e, 'f) float)" and x="(2::real) ^ exponent a_float * (2::real) ^ exponent b_float"]
     by (simp add: le_divide_eq)
-  then have "(2::real) ^ exponent rounded_mul / (2::real)^n * (2::real) ^ bias TYPE(('e, 'f) float) \<ge> (2::real) ^ exponent a * (2::real) ^ exponent b" by argo
-  then have step1_5: "(2::real) ^ exponent rounded_mul / (2::real)^n \<ge> (2::real) ^ exponent b * (2::real) ^ exponent a / (2::real) ^ bias TYPE(('e, 'f) float)" 
-    using mult_imp_div_pos_le[where z="(2::real) ^ exponent rounded_mul / (2::real)^n" and y="(2::real) ^ bias TYPE(('e, 'f) float)" and x="(2::real) ^ exponent b * (2::real) ^ exponent a"]
+  then have "(2::real) ^ exponent rounded_mul / (2::real)^n * (2::real) ^ bias TYPE(('e, 'f) float) \<ge> (2::real) ^ exponent a_float * (2::real) ^ exponent b_float" by argo
+  then have step1_5: "(2::real) ^ exponent rounded_mul / (2::real)^n \<ge> (2::real) ^ exponent b_float * (2::real) ^ exponent a_float / (2::real) ^ bias TYPE(('e, 'f) float)" 
+    using mult_imp_div_pos_le[where z="(2::real) ^ exponent rounded_mul / (2::real)^n" and y="(2::real) ^ bias TYPE(('e, 'f) float)" and x="(2::real) ^ exponent b_float * (2::real) ^ exponent a_float"]
     by (simp add: mult.commute)
-  have "0 \<le> (1::real) + real (fraction b) / (2::real) ^ LENGTH('f)" by simp
-  moreover from ulp_positive assms have "0 \<le> a_a"
+  have "0 \<le> (1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)" by simp
+  moreover from ulp_positive assms have "0 \<le> a_accuracy"
     by (metis abs_not_less_zero linorder_le_less_linear mult_pos_neg2 order_le_less_trans)
-  ultimately have step1_75: "0 \<le> ((1::real) + real (fraction b) / (2::real) ^ LENGTH('f)) * a_a  / 
+  ultimately have step1_75: "0 \<le> ((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy  / 
 (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f))" by simp
 
-  with step1 have step2: "\<bar>valof b * d1\<bar> \<le> (2::real) ^ exponent rounded_mul / (2::real)^n*
-          (((1::real) + real (fraction b) / (2::real) ^ LENGTH('f)) * a_a /
+  with step1 have step2: "\<bar>valof b_float * d1\<bar> \<le> (2::real) ^ exponent rounded_mul / (2::real)^n*
+          (((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy /
 (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f)))"
-    using mult_right_mono[where c="((1::real) + real (fraction b) / (2::real) ^ LENGTH('f)) * a_a  / 
-(2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f))" and b="(2::real) ^ exponent rounded_mul / (2::real)^n" and a="(2::real) ^ exponent a * (2::real) ^ exponent b/
+    using mult_right_mono[where c="((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy  / 
+(2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f))" and b="(2::real) ^ exponent rounded_mul / (2::real)^n" and a="(2::real) ^ exponent a_float * (2::real) ^ exponent b_float/
     (2::real) ^ bias TYPE(('e, 'f) IEEE.float)"] step1_5 by argo
 
   have "(2::real) ^ exponent rounded_mul > 0" by simp
-  then have "1 / (2::real)^n* ((1::real) + real (fraction b) / (2::real) ^ LENGTH('f)) * a_a /
+  then have "1 / (2::real)^n* ((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy /
 (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f)) < 0 \<Longrightarrow> 
     0 > (2::real) ^ exponent rounded_mul / (2::real)^n*
-          ((1::real) + real (fraction b) / (2::real) ^ LENGTH('f)) * a_a /
-(2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f))" using mult_pos_neg[where a="(2::real) ^ exponent rounded_mul" and b="1/(2::real)^n* ((1::real) + real (fraction b) / (2::real) ^ LENGTH('f)) * a_a /
+          ((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy /
+(2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f))" using mult_pos_neg[where a="(2::real) ^ exponent rounded_mul" and b="1/(2::real)^n* ((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy /
 (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f))"] by argo
-    with step2 have "0 \<le> 1/(2::real)^n*((1::real) + real (fraction b) / (2::real) ^ LENGTH('f)) * a_a /
+    with step2 have "0 \<le> 1/(2::real)^n*((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy /
 (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f))" by argo
     moreover have "(2::real) ^ exponent rounded_mul \<le> (2::real) ^ (max (IEEE.exponent rounded_mul) (1::nat))" by simp
     ultimately have "(2::real) ^ exponent rounded_mul / 
-          (2::real)^n*((1::real) + real (fraction b) / (2::real) ^ LENGTH('f)) * a_a /
+          (2::real)^n*((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy /
 (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f)) \<le> (2::real) ^ (max (IEEE.exponent rounded_mul) (1::nat)) /
-          (2::real)^n*((1::real) + real (fraction b) / (2::real) ^ LENGTH('f)) * a_a /
+          (2::real)^n*((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy /
 (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f))" 
       using mult_right_mono[where a="(2::real) ^ exponent rounded_mul" and b="(2::real) ^ (max (IEEE.exponent rounded_mul) (1::nat))"
-            and c="1/(2::real)^n*((1::real) + real (fraction b) / (2::real) ^ LENGTH('f)) * a_a /
+            and c="1/(2::real)^n*((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy /
 (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f))"] by simp
-    with step2 have "\<bar>valof b * d1\<bar> \<le> 
-          1/(2::real)^n*((1::real) + real (fraction b) / (2::real) ^ LENGTH('f)) * a_a * (2::real) ^ (max (IEEE.exponent rounded_mul) (1::nat)) /
+    with step2 have "\<bar>valof b_float * d1\<bar> \<le> 
+          1/(2::real)^n*((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy * (2::real) ^ (max (IEEE.exponent rounded_mul) (1::nat)) /
 (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f))" by argo
-    then have "\<bar>valof b * d1\<bar> \<le> 
-          1/(2::real)^n*((1::real) + real (fraction b) / (2::real) ^ LENGTH('f)) * a_a * ulp rounded_mul" by(simp add: ulp_equivelance)
+    then have "\<bar>valof b_float * d1\<bar> \<le> 
+          1/(2::real)^n*((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy * ulp rounded_mul" by(simp add: ulp_equivelance)
     then show ?thesis by argo
   qed
 
@@ -403,30 +399,35 @@ proof -
 
 
 lemma multiplication_error_propagation3_distance:
-  assumes "exponent a_float \<noteq> 0"
+  assumes "ulp_accuracy a_real (a_float::('e,'f) float) a_accuracy"
+  and "ulp_accuracy b_real (b_float::('e,'f) float) b_accuracy"
+  and "exponent a_float \<noteq> 0"
   and "exponent b_float \<noteq> 0"
+  and "1 < LENGTH('e)"
+  and "1 < LENGTH('f)"
+  and "sign a_float = 0" and "sign b_float = 0"
+  and "\<bar>valof a_float * valof b_float\<bar> < threshold TYPE(('e, 'f) IEEE.float)"
   and "a_accuracy \<le> (2::real) ^ LENGTH('f)"
   and "b_accuracy \<le> (2::real) ^ LENGTH('f)"
-  and "\<bar>valof a_float * valof b_float\<bar> < threshold TYPE(('e, 'f) IEEE.float)"
 shows "\<bar>(valof a_float * valof b_float) - (a_real*b_real)\<bar> \<le> (2*a_accuracy+2*b_accuracy) * ulp (fmul To_nearest a_float b_float)"
 proof -
   thm rounding_multiplication_exponent
-  from assms ulp_accuracy_def context_assumptions have "\<exists>d. (a_real = valof a_float + d \<and> \<bar>d\<bar> \<le> a_accuracy * ulp a_float)"
+  from assms ulp_accuracy_def have "\<exists>d. (a_real = valof a_float + d \<and> \<bar>d\<bar> \<le> a_accuracy * ulp a_float)"
     by (metis abs_minus_commute add_diff_cancel_left' add_diff_eq)
   then obtain d1 where d1_def: "a_real = valof a_float + d1 \<and> \<bar>d1\<bar> \<le> a_accuracy * ulp a_float" by blast
-  from assms ulp_accuracy_def context_assumptions have "\<exists>d. (b_real = valof b_float + d \<and> \<bar>d\<bar> \<le> b_accuracy * ulp b_float)"
+  from assms ulp_accuracy_def have "\<exists>d. (b_real = valof b_float + d \<and> \<bar>d\<bar> \<le> b_accuracy * ulp b_float)"
     by (metis abs_minus_commute add_diff_cancel_left' add_diff_eq)
   then obtain d2 where d2_def: "b_real = valof b_float + d2 \<and> \<bar>d2\<bar> \<le> b_accuracy * ulp b_float" by blast
   with d1_def have real_float_diff: "a_real * b_real = (valof a_float * valof b_float) + (valof a_float * d2) + (valof b_float * d1) + (d1 * d2)" by algebra
 
   obtain rounded_mul where rounded_mul_def: "rounded_mul = (round To_nearest (valof a_float * valof b_float)::('e,'f) float)" by blast 
-  with rounding_0_5_ulp ulp_accuracy_def assms context_assumptions have rounded_mul_d: "\<bar>valof rounded_mul - (valof a_float * valof b_float)\<bar> \<le> 0.5 * ulp rounded_mul" by fast  
+  with rounding_0_5_ulp ulp_accuracy_def assms have rounded_mul_d: "\<bar>valof rounded_mul - (valof a_float * valof b_float)\<bar> \<le> 0.5 * ulp rounded_mul" by fast  
   moreover from is_finite_closest rounded_mul_def assms have fin_rounded_mul: "is_finite rounded_mul" by auto
   ultimately have "ulp_accuracy (valof a_float * valof b_float) rounded_mul 0.5" using ulp_accuracy_def by blast
   have step_1: "valof (fmul To_nearest a_float b_float) = valof (
                  round To_nearest (valof a_float * valof b_float)::('e,'f) float)" 
     using assms apply(simp add:fmul_def valof_zerosign del:round.simps)
-    using assms ulp_accuracy_def float_distinct_finite context_assumptions by blast
+    using assms ulp_accuracy_def float_distinct_finite by blast
   with rounded_mul_def have ulp_same: "ulp (fmul To_nearest a_float b_float) = ulp rounded_mul" using abs_valof_e_exp_e exp_e_ulp_e by metis
   
 
@@ -437,13 +438,13 @@ proof -
     from case1 have case1_ge: "exponent rounded_mul + bias TYPE(('e, 'f) float) \<ge> exponent a_float + exponent b_float+ 0 " by auto
     
 
-    from d1_def multiplication_error_propagation3_case1_helper_general[OF case1_ge assms(1) assms(2)] have b_d1: "\<bar>valof b_float * d1\<bar> \<le> 
+    from d1_def multiplication_error_propagation3_case1_helper_general[OF case1_ge assms(3) assms(4)] have b_d1: "\<bar>valof b_float * d1\<bar> \<le> 
           ((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy * ulp rounded_mul" by simp
     from case1_ge have case1_ge':"exponent rounded_mul + bias TYPE(('e, 'f) float)\<ge> exponent b_float + exponent a_float + 0 " by simp
-    from d2_def multiplication_error_propagation3_case1_helper_general[ OF case1_ge' assms(2) assms(1)] have a_d2: "\<bar>valof a_float * d2\<bar> \<le> 
-          ((1::real) + real (fraction a_float) / (2::real) ^ LENGTH('f)) * b_accuracy * ulp rounded_mul" by simp
+    from d2_def multiplication_error_propagation3_case1_helper_general[OF case1_ge' assms(4) assms(3)] have a_d2: "\<bar>valof a_float * d2\<bar> \<le> 
+          ((1::real) + real (fraction a_float) / (2::real) ^ LENGTH('f)) * b_accuracy * ulp rounded_mul" by auto
 
-    from d1_def d2_def multiplication_error_propagation3_case1_helper2_general[OF case1_ge  assms(1) assms(2)] have d1_d2: "\<bar>d1*d2\<bar> \<le> 
+    from d1_def d2_def multiplication_error_propagation3_case1_helper2_general[OF case1_ge  assms(3) assms(4)] have d1_d2: "\<bar>d1*d2\<bar> \<le> 
           (b_accuracy / (2::real) ^ LENGTH('f)) * a_accuracy * ulp rounded_mul" by simp
 
     from b_d1 a_d2 d1_d2 have combined: "\<bar>valof b_float * d1 + valof a_float * d2 + d1 * d2\<bar> \<le>
@@ -454,8 +455,8 @@ proof -
       + a_accuracy + b_accuracy
       ) * ulp rounded_mul" by argo
 
-    from ulp_accuracy_non_negative assms frac_def context_assumptions have all_pos: 
-      "0 \<le> a_accuracy \<and> 0 \<le> b_accuracy \<and> 0 \<le> fraction a_float \<and> 0 < (2::real) ^ LENGTH('f)" by fastforce
+    from ulp_accuracy_non_negative assms frac_def have all_pos: 
+      "0 \<le> a_accuracy \<and> 0 \<le> b_accuracy \<and> 0 \<le> fraction a_float \<and> 0 < (2::real) ^ LENGTH('f)" by auto
     from fracs_added have "fraction b_float \<le> (2::real) ^ LENGTH('f) - fraction a_float"
       using power_2_simp[where x="LENGTH('f)"] by linarith
     with all_pos have "fraction b_float / (2::real) ^ LENGTH('f) * a_accuracy +
@@ -534,13 +535,13 @@ proof -
     from float_frac_l have fracs_added: "fraction a_float + fraction b_float < 2*(2::nat) ^ LENGTH('f)"
       by (metis add_less_mono mult_2)
 
-    from d1_def multiplication_error_propagation3_case1_helper_general[OF case2_ge assms(1) assms(2)] have b_d1: "\<bar>valof b_float * d1\<bar> \<le> 
+    from d1_def multiplication_error_propagation3_case1_helper_general[OF case2_ge assms(3) assms(4)] have b_d1: "\<bar>valof b_float * d1\<bar> \<le> 
           ((1::real) + real (fraction b_float) / (2::real) ^ LENGTH('f)) * a_accuracy / 2 * ulp rounded_mul" by simp
     from case2_ge have case2_ge':"exponent rounded_mul + bias TYPE(('e, 'f) float)\<ge> exponent b_float + exponent a_float + 1 " by simp
-    from d2_def multiplication_error_propagation3_case1_helper_general[OF case2_ge' assms(2) assms(1)] have a_d2: "\<bar>valof a_float * d2\<bar> \<le> 
+    from d2_def multiplication_error_propagation3_case1_helper_general[OF case2_ge' assms(4) assms(3)] have a_d2: "\<bar>valof a_float * d2\<bar> \<le> 
           ((1::real) + real (fraction a_float) / (2::real) ^ LENGTH('f)) * b_accuracy / 2 * ulp rounded_mul" by simp
 
-    from d1_def d2_def multiplication_error_propagation3_case1_helper2_general[OF case2_ge  assms(1) assms(2)] have d1_d2: "\<bar>d1*d2\<bar> \<le> 
+    from d1_def d2_def multiplication_error_propagation3_case1_helper2_general[OF case2_ge  assms(3) assms(4)] have d1_d2: "\<bar>d1*d2\<bar> \<le> 
           (b_accuracy / (2::real) ^ LENGTH('f)) * a_accuracy / 2 * ulp rounded_mul" by simp
 
     from b_d1 a_d2 d1_d2 have combined: "\<bar>valof b_float * d1 + valof a_float * d2 + d1 * d2\<bar> \<le>
@@ -551,8 +552,8 @@ proof -
       + a_accuracy + b_accuracy
       ) / 2 * ulp rounded_mul" by argo
 
-    from ulp_accuracy_non_negative assms frac_def context_assumptions have all_pos: 
-      "0 \<le> a_accuracy \<and> 0 \<le> b_accuracy \<and> 0 \<le> fraction a_float \<and> 0 < (2::real) ^ LENGTH('f)" by fastforce
+    from ulp_accuracy_non_negative assms frac_def have all_pos: 
+      "0 \<le> a_accuracy \<and> 0 \<le> b_accuracy \<and> 0 \<le> fraction a_float \<and> 0 < (2::real) ^ LENGTH('f)" by auto
     from fracs_added have "fraction b_float \<le> 2*(2::real) ^ LENGTH('f) - fraction a_float"
       using power_2_simp[where x="LENGTH('f)"] by linarith
     with all_pos have "fraction b_float / (2::real) ^ LENGTH('f) * a_accuracy +
@@ -622,8 +623,8 @@ proof -
       ) / 2 * ulp rounded_mul"
       by auto
 
-    from ulp_accuracy_non_negative a_rel b_rel have "3*a_accuracy \<le> 4*a_accuracy" by fastforce
-    moreover from ulp_accuracy_non_negative a_rel b_rel have "2*b_accuracy \<le> 4*b_accuracy" by fastforce
+    from ulp_accuracy_non_negative assms(1) assms(2) have "3*a_accuracy \<le> 4*a_accuracy" by auto
+    moreover from ulp_accuracy_non_negative assms(1) assms(2) have "2*b_accuracy \<le> 4*b_accuracy" by auto
     ultimately have "3*a_accuracy + 2*b_accuracy \<le> 4*a_accuracy + 4*b_accuracy" by force
     moreover from ulp_positive have "0 < 1/ 2 * ulp rounded_mul" by auto
     ultimately have "(
@@ -649,7 +650,12 @@ qed
 
 
 lemma multiplication_error_propagation_combined_distance:
-  assumes "\<bar>valof a_float * valof b_float\<bar> < threshold TYPE(('e, 'f) float)"
+  assumes "ulp_accuracy a_real (a_float::('e,'f) float) a_accuracy"
+  and "ulp_accuracy b_real (b_float::('e,'f) float) b_accuracy"
+  and "1 < LENGTH('e)"
+  and "1 < LENGTH('f)"
+  and "sign a_float = 0" and "sign b_float = 0"
+  and "\<bar>valof a_float * valof b_float\<bar> < threshold TYPE(('e, 'f) IEEE.float)"
   and "a_accuracy \<le> (2::real) ^ LENGTH('f)"
   and "b_accuracy \<le> (2::real) ^ LENGTH('f)"
   and "0 \<le> a_real" and "a_real \<le> 1"
@@ -659,12 +665,13 @@ shows "\<bar>(valof a_float * valof b_float) - (a_real*b_real)\<bar> \<le> (2*a_
   apply(cases "exponent b_float \<noteq> 0")
   using assms multiplication_error_propagation3_distance apply blast
   subgoal proof -
-    from ulp_accuracy_non_negative a_rel b_rel have "(2*a_accuracy+b_accuracy) \<le> (2*a_accuracy+2*b_accuracy)"
-      by fastforce
+    from ulp_accuracy_non_negative assms(1) assms(2) have "(2*a_accuracy+b_accuracy) \<le> (2*a_accuracy+2*b_accuracy)"
+      by auto
     with ulp_positive have dist_bigger: "(2*a_accuracy+b_accuracy) * ulp (fmul To_nearest a_float b_float) \<le> (2*a_accuracy+2*b_accuracy) * ulp (fmul To_nearest a_float b_float)"
       using mult_right_mono[where c="ulp (fmul To_nearest a_float b_float)" and a="(2*a_accuracy+b_accuracy)" and b="(2*a_accuracy+2*b_accuracy)"]
       using less_eq_real_def by blast
-    from multiplication_error_propagation1_distance[where a_r=a_real and b_r=b_real and a_a=a_accuracy and b_a=b_accuracy and a_f=a_float and b_f = b_float, OF a_rel b_rel] dist_bigger assms(1) assms(4) assms(5) sign_a sign_b
+    from multiplication_error_propagation1_distance[where a_real=a_real and b_real=b_real and a_float=a_float and b_float=b_float and a_accuracy=a_accuracy and b_accuracy=b_accuracy, 
+        OF assms(1) assms(2)] dist_bigger assms(11) assms(10) assms(3) assms(4) assms(5) assms(6) assms(7)
     show " exponent a_float \<noteq> (0::nat) \<Longrightarrow>
     \<not> exponent b_float \<noteq> (0::nat) \<Longrightarrow>
     \<bar>valof a_float * valof b_float - a_real * b_real\<bar>
@@ -672,30 +679,34 @@ shows "\<bar>(valof a_float * valof b_float) - (a_real*b_real)\<bar> \<le> (2*a_
   qed
   apply(cases "exponent b_float \<noteq> 0")
   subgoal proof -
-    from ulp_accuracy_non_negative a_rel b_rel have "(a_accuracy+2*b_accuracy) \<le> (2*a_accuracy+2*b_accuracy)"
-      by fastforce
+    from ulp_accuracy_non_negative assms(1) assms(2) have "(a_accuracy+2*b_accuracy) \<le> (2*a_accuracy+2*b_accuracy)"
+      by auto
     with ulp_positive have dist_bigger: "(a_accuracy+2*b_accuracy) * ulp (fmul To_nearest a_float b_float) \<le> (2*a_accuracy+2*b_accuracy) * ulp (fmul To_nearest a_float b_float)"
       using mult_right_mono[where c="ulp (fmul To_nearest a_float b_float)" and a="(a_accuracy+2*b_accuracy)" and b="(2*a_accuracy+2*b_accuracy)"]
       using less_eq_real_def by blast
     have mul_same: "fmul To_nearest a_float b_float = fmul To_nearest b_float a_float" by(simp add: fmul_def mult.commute)
-    from multiplication_error_propagation1_distance[where a_r=b_real and b_r=a_real and a_a=b_accuracy and b_a=a_accuracy and a_f=b_float and b_f = a_float, OF b_rel a_rel]
-    have reorederd: "b_real \<le> (1::real) \<Longrightarrow>
+    from multiplication_error_propagation1_distance[where a_real=b_real and b_real=a_real and a_float=b_float and b_float=a_float and a_accuracy=b_accuracy and b_accuracy=a_accuracy]
+    have reorederd: "ulp_accuracy (a_real::real) (a_float::('e, 'f) IEEE.float) (a_accuracy::real) \<Longrightarrow>
+      ulp_accuracy (b_real::real) (b_float::('e, 'f) IEEE.float) (b_accuracy::real) \<Longrightarrow>
+      b_real \<le> (1::real) \<Longrightarrow>
       (0::real) \<le> b_real \<Longrightarrow>
-      sign b_float = (0::nat) \<Longrightarrow>
+      (1::nat) < LENGTH('e) \<Longrightarrow>
+      (1::nat) < LENGTH('f) \<Longrightarrow>
       sign a_float = (0::nat) \<Longrightarrow>
+      sign b_float = (0::nat) \<Longrightarrow>
       \<bar>valof a_float * valof b_float\<bar> < threshold TYPE(('e, 'f) IEEE.float) \<Longrightarrow>
       IEEE.exponent b_float \<noteq> (0::nat) \<Longrightarrow>
       IEEE.exponent a_float = (0::nat) \<Longrightarrow>
       \<bar>valof a_float * valof b_float - a_real * b_real\<bar>
        \<le> (a_accuracy + (2::real) * b_accuracy) * ulp (fmul To_nearest b_float a_float)" by argo
-    from reorederd[OF assms(7) assms(6)  sign_b sign_a assms(1)] dist_bigger mul_same
+    from reorederd[OF assms(1) assms(2) assms(13) assms(12) assms(3) assms(4) assms(5) assms(6) assms(7)] dist_bigger mul_same
     show "\<not>  exponent a_float \<noteq> (0::nat) \<Longrightarrow>
     exponent b_float \<noteq> (0::nat) \<Longrightarrow>
     \<bar>valof a_float * valof b_float - a_real * b_real\<bar>
     \<le> (2*a_accuracy + 2*b_accuracy) * ulp (fmul To_nearest a_float b_float)" by fastforce
   qed
   subgoal proof -
-    from multiplication_error_propagation2_distance
+    from multiplication_error_propagation2_distance[where a_real=a_real and b_real=b_real and a_float=a_float and b_float=b_float and a_accuracy=a_accuracy and b_accuracy=b_accuracy]
     have reordered: "ulp_accuracy (a_real::real) (a_float::('e, 'f) IEEE.float) (a_accuracy::real) \<Longrightarrow>
       ulp_accuracy (b_real::real) (b_float::('e, 'f) IEEE.float) (b_accuracy::real) \<Longrightarrow>
       a_real \<le> (1::real) \<Longrightarrow>
@@ -709,7 +720,7 @@ shows "\<bar>(valof a_float * valof b_float) - (a_real*b_real)\<bar> \<le> (2*a_
       IEEE.exponent b_float = (0::nat) \<Longrightarrow>
       \<bar>valof a_float * valof b_float - a_real * b_real\<bar> \<le> (a_accuracy + b_accuracy) * ulp (fmul To_nearest a_float b_float)"
       by blast
-    from reordered[OF a_rel b_rel assms(5) assms(4) len_e len_f sign_a sign_b assms(1)]
+    from reordered assms
     show "\<not> IEEE.exponent a_float \<noteq> (0::nat) \<Longrightarrow>
     \<not> IEEE.exponent b_float \<noteq> (0::nat) \<Longrightarrow>
     \<bar>valof a_float * valof b_float - a_real * b_real\<bar>
@@ -718,7 +729,12 @@ shows "\<bar>(valof a_float * valof b_float) - (a_real*b_real)\<bar> \<le> (2*a_
   done
 
 lemma multiplication_error_propagation_ulp_accuracy:
-  assumes "\<bar>valof a_float * valof b_float\<bar> < threshold TYPE(('e, 'f) IEEE.float)"
+  assumes "ulp_accuracy a_real (a_float::('e,'f) float) a_accuracy"
+  and "ulp_accuracy b_real (b_float::('e,'f) float) b_accuracy"
+  and "1 < LENGTH('e)"
+  and "1 < LENGTH('f)"
+  and "sign a_float = 0" and "sign b_float = 0"
+  and "\<bar>valof a_float * valof b_float\<bar> < threshold TYPE(('e, 'f) IEEE.float)"
   and "a_accuracy \<le> (2::real) ^ LENGTH('f)"
   and "b_accuracy \<le> (2::real) ^ LENGTH('f)"
   and "0 \<le> a_real" and "a_real \<le> 1"
@@ -728,14 +744,14 @@ proof -
   have step_1: "valof (fmul To_nearest a_float b_float) = valof (
                  round To_nearest (valof a_float * valof b_float)::('e,'f) float)" 
     apply(simp add:fmul_def valof_zerosign del:round.simps)
-    using assms context_assumptions ulp_accuracy_def float_distinct_finite by blast
+    using assms ulp_accuracy_def float_distinct_finite by blast
   moreover obtain rounded_mul where rounded_mul_def: "rounded_mul = (round To_nearest (valof a_float * valof b_float)::('e,'f) float)" by blast 
   ultimately have ulp_accuracy_same: "ulp_accuracy (a_real * b_real) (fmul To_nearest a_float b_float) (2*a_accuracy + 2*b_accuracy + 0.5) =
     ulp_accuracy (a_real * b_real) rounded_mul (2*a_accuracy + 2*b_accuracy + 0.5)" using valof_same_ulp_accuracy_same by blast 
   from step_1 rounded_mul_def have ulp_same: "ulp (fmul To_nearest a_float b_float) = ulp rounded_mul" using abs_valof_e_exp_e exp_e_ulp_e by metis
   
   with assms multiplication_error_propagation_combined_distance have "\<bar>(valof a_float * valof b_float) - (a_real*b_real)\<bar> \<le> (2*a_accuracy+2*b_accuracy) * ulp rounded_mul" by metis
-  moreover from rounding_0_5_ulp ulp_accuracy_def assms context_assumptions rounded_mul_def have "\<bar>valof rounded_mul - (valof a_float * valof b_float)\<bar> \<le> 0.5 * ulp rounded_mul" by fast
+  moreover from rounding_0_5_ulp ulp_accuracy_def assms rounded_mul_def have "\<bar>valof rounded_mul - (valof a_float * valof b_float)\<bar> \<le> 0.5 * ulp rounded_mul" by fast
   ultimately have rounded_mul_dist: "\<bar>valof rounded_mul - (a_real*b_real)\<bar> \<le> (0.5+2*a_accuracy+2*b_accuracy) * ulp rounded_mul" by argo
 
   from is_finite_closest have "is_finite (closest valof (\<lambda>a::('e, 'f) IEEE.float. even (fraction a)) (Collect is_finite) (valof a_float * valof b_float))" by blast
@@ -746,7 +762,12 @@ proof -
 qed
 
 lemma multiplication_addition_error_propagation_ulp_accuracy:
-  assumes 
+  assumes "ulp_accuracy a_real (a_float::('e,'f) float) a_accuracy"
+   "ulp_accuracy b_real (b_float::('e,'f) float) b_accuracy"
+   "ulp_accuracy c_real (c_float::('e,'f) float) c_accuracy"
+   "1 < LENGTH('e)"
+   "1 < LENGTH('f)"
+   "sign a_float = 0" and "sign b_float = 0" and "sign c_float = 0"
    "\<bar>valof a_float * valof b_float + valof c_float\<bar> < threshold TYPE(('e, 'f) IEEE.float)"
    "a_accuracy \<le> (2::real) ^ LENGTH('f)"
    "b_accuracy \<le> (2::real) ^ LENGTH('f)"
@@ -754,10 +775,10 @@ lemma multiplication_addition_error_propagation_ulp_accuracy:
    "0 \<le> b_real" and "b_real \<le> 1"
 shows "ulp_accuracy (a_real * b_real + c_real) (fmul_add To_nearest a_float b_float c_float) (2*a_accuracy + 2*b_accuracy + c_accuracy + 0.5)"
 proof -
-  from mult_nonneg_nonneg valof_nonneg sign_a sign_b abs_of_nonneg have mult_eq_abs: "\<bar>valof a_float * valof b_float\<bar> = valof a_float * valof b_float" by meson
-  moreover from valof_nonneg sign_c abs_of_nonneg have c_eq_abs: "\<bar>valof c_float\<bar> = valof c_float" by blast
+  from mult_nonneg_nonneg valof_nonneg assms(7) assms(6) abs_of_nonneg have mult_eq_abs: "\<bar>valof a_float * valof b_float\<bar> = valof a_float * valof b_float" by meson
+  moreover from valof_nonneg assms(8) abs_of_nonneg have c_eq_abs: "\<bar>valof c_float\<bar> = valof c_float" by blast
   ultimately have multiplication_le: "\<bar>valof a_float * valof b_float\<bar> \<le> \<bar>valof a_float * valof b_float + valof c_float\<bar>" by force
-  with assms(1) have mult_l_threshold: "\<bar>valof a_float * valof b_float\<bar> < threshold TYPE(('e, 'f) IEEE.float)" by argo
+  with assms(9) have mult_l_threshold: "\<bar>valof a_float * valof b_float\<bar> < threshold TYPE(('e, 'f) IEEE.float)" by argo
   with assms multiplication_error_propagation_combined_distance have mult_dist:
     "\<bar>(valof a_float * valof b_float) - (a_real*b_real)\<bar> \<le> (2*a_accuracy+2*b_accuracy) * ulp (fmul To_nearest a_float b_float)" by blast
   from c_eq_abs mult_eq_abs have mult_add_eq_abs: "\<bar>valof a_float * valof b_float + valof c_float\<bar> = valof a_float * valof b_float + valof c_float" by argo
@@ -765,44 +786,44 @@ proof -
   obtain rounded_sum where rounded_sum_def: "rounded_sum = (round To_nearest (valof a_float * valof b_float + valof c_float)::('e,'f) float)" by blast 
   then have fmul_add_to_round: "valof (fmul_add To_nearest a_float b_float c_float) = valof (
                  rounded_sum)" 
-    using sign_a sign_b sign_c apply(simp add:fmul_add_def Let_def valof_zerosign valof_round_nearest_zero del:round.simps)
-    using ulp_accuracy_def float_distinct_finite a_rel b_rel c_rel by blast
+    using assms(6) assms(7) assms(8) apply(simp add:fmul_add_def Let_def valof_zerosign valof_round_nearest_zero del:round.simps)
+    using ulp_accuracy_def float_distinct_finite assms(1) assms(2) assms(3) float_distinct_finite by blast
   with fmul_add_to_round have ulp_same: "ulp (fmul_add To_nearest a_float b_float c_float) = ulp rounded_sum" using abs_valof_e_exp_e ulp_equivelance by metis 
-  from fmul_add_to_round ge_zero_rounding_ge_zero mult_eq_abs assms(1) rounded_sum_def have abs_fmul_add_to_round:"\<bar>valof (fmul_add To_nearest a_float b_float c_float)\<bar> = valof (
+  from fmul_add_to_round ge_zero_rounding_ge_zero mult_eq_abs assms(9) rounded_sum_def have abs_fmul_add_to_round:"\<bar>valof (fmul_add To_nearest a_float b_float c_float)\<bar> = valof (
                  rounded_sum)"
     by (metis abs_le_self_iff abs_le_zero_iff abs_of_nonneg add.right_neutral add_le_same_cancel1 mult_add_eq_abs)
   have fmul_to_round: "valof (fmul To_nearest a_float b_float) = valof (
                  round To_nearest (valof a_float * valof b_float)::('e,'f) float)" 
-    using sign_a sign_b sign_c apply(simp add:fmul_def Let_def valof_zerosign valof_round_nearest_zero del:round.simps)
-    using ulp_accuracy_def float_distinct_finite a_rel b_rel c_rel float_distinct_finite by blast
+    using assms(6) assms(7) assms(8) apply(simp add:fmul_def Let_def valof_zerosign valof_round_nearest_zero del:round.simps)
+    using ulp_accuracy_def float_distinct_finite assms(1) assms(2) assms(3) float_distinct_finite by blast
   with ge_zero_rounding_ge_zero mult_eq_abs mult_l_threshold have abs_fmul_to_round: "\<bar>valof (fmul To_nearest a_float b_float)\<bar> = valof (
                  round To_nearest (valof a_float * valof b_float)::('e,'f) float)" by force
  
-  from abs_fmul_add_to_round abs_fmul_to_round ge_rounding_ge multiplication_le assms(2) rounded_sum_def have 
+  from abs_fmul_add_to_round abs_fmul_to_round ge_rounding_ge multiplication_le assms(10) rounded_sum_def have 
     "\<bar>valof (fmul To_nearest a_float b_float)\<bar> \<le> \<bar>valof (fmul_add To_nearest a_float b_float c_float)\<bar>"
-    by (smt (verit, ccfv_SIG) c_eq_abs assms(1))
+    by (smt (verit, ccfv_SIG) c_eq_abs assms(9))
   with exp_ge_ulp_ge abs_valof_ge_exp_ge ulp_same have "ulp (fmul To_nearest a_float b_float) \<le> ulp rounded_sum" by metis
-  with a_rel b_rel ulp_accuracy_non_negative mult_dist have mult_dist2: 
+  with assms(1) assms(2) ulp_accuracy_non_negative mult_dist have mult_dist2: 
     "\<bar>(valof a_float * valof b_float) - (a_real*b_real)\<bar> \<le> (2*a_accuracy+2*b_accuracy) * ulp rounded_sum"
     by (smt (verit, ccfv_SIG) ordered_comm_semiring_class.comm_mult_left_mono)
   
   { 
-    from assms context_assumptions ulp_accuracy_def have finite_a_b_c: "is_finite c_float" by blast
+    from assms ulp_accuracy_def have finite_a_b_c: "is_finite c_float" by blast
     with addition_rounding_increases[where a="valof a_float * valof b_float" and b="c_float"]
-      assms context_assumptions rounded_sum_def mult_eq_abs zero_le_power_abs have "valof c_float \<le> valof rounded_sum"
+      assms rounded_sum_def mult_eq_abs zero_le_power_abs have "valof c_float \<le> valof rounded_sum"
       by (metis power_one_right)
-    with valof_nonneg assms abs_of_nonneg context_assumptions have "\<bar>valof c_float\<bar> \<le> \<bar>valof rounded_sum\<bar>"
+    with valof_nonneg assms abs_of_nonneg have "\<bar>valof c_float\<bar> \<le> \<bar>valof rounded_sum\<bar>"
       by (smt (verit, del_insts))
-    with abs_valof_ge_exp_ge exp_ge_ulp_ge assms ulp_accuracy_non_negative context_assumptions have 
+    with abs_valof_ge_exp_ge exp_ge_ulp_ge assms ulp_accuracy_non_negative have 
       "c_accuracy * ulp c_float \<le> c_accuracy * ulp rounded_sum"
       using mult_left_mono by metis
-    moreover from assms ulp_accuracy_def context_assumptions have "\<bar>valof c_float - c_real\<bar> \<le> c_accuracy * ulp c_float" by fast
+    moreover from assms ulp_accuracy_def have "\<bar>valof c_float - c_real\<bar> \<le> c_accuracy * ulp c_float" by fast
     ultimately have "\<bar>valof c_float - c_real\<bar> \<le> c_accuracy * ulp rounded_sum" by argo
   }
   with mult_dist2 have "\<bar>(valof a_float * valof b_float+valof c_float) - (a_real*b_real+c_real)\<bar> \<le> (2*a_accuracy+2*b_accuracy+c_accuracy) * ulp rounded_sum"
     by argo
   
-  moreover from rounding_0_5_ulp ulp_accuracy_def assms context_assumptions rounded_sum_def have "\<bar>valof rounded_sum - (valof a_float * valof b_float + valof c_float)\<bar> \<le> 0.5 * ulp rounded_sum" by fast
+  moreover from rounding_0_5_ulp ulp_accuracy_def assms rounded_sum_def have "\<bar>valof rounded_sum - (valof a_float * valof b_float + valof c_float)\<bar> \<le> 0.5 * ulp rounded_sum" by fast
   ultimately have rounded_mul_dist: "\<bar>valof rounded_sum - (a_real*b_real+c_real)\<bar> \<le> (0.5+2*a_accuracy+2*b_accuracy+c_accuracy) * ulp rounded_sum" by argo
 
   from is_finite_closest have "is_finite (closest valof (\<lambda>a::('e, 'f) IEEE.float. even (fraction a)) (Collect is_finite) (valof a_float * valof b_float+valof c_float))" by blast
@@ -816,7 +837,13 @@ qed
 
 thm three_mul_added_numbers
 lemma multiplication_addition_error_propagation_ulp_accuracy2:
-  assumes "is_finite (fmul_add To_nearest a_float b_float c_float)"
+  assumes "ulp_accuracy a_real (a_float::('e,'f) float) a_accuracy"
+  and "ulp_accuracy b_real (b_float::('e,'f) float) b_accuracy"
+  and "ulp_accuracy c_real (c_float::('e,'f) float) c_accuracy"
+  and "1 < LENGTH('e)"
+  and "1 < LENGTH('f)"
+  and "sign a_float = 0" and "sign b_float = 0" and "sign c_float = 0"
+  and "is_finite (fmul_add To_nearest a_float b_float c_float)"
   and "a_accuracy \<le> (2::real) ^ LENGTH('f)"
   and "b_accuracy \<le> (2::real) ^ LENGTH('f)"
   and "0 \<le> a_real" and "a_real \<le> 1"
@@ -824,5 +851,4 @@ lemma multiplication_addition_error_propagation_ulp_accuracy2:
 shows "ulp_accuracy (a_real * b_real + c_real) (fmul_add To_nearest a_float b_float c_float) (2*a_accuracy + 2*b_accuracy + c_accuracy + 0.5)"
   using three_mul_added_numbers(1) assms multiplication_addition_error_propagation_ulp_accuracy
   by metis
-end
 end

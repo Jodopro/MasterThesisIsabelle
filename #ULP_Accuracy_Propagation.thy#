@@ -59,25 +59,20 @@ qed
 
 
 lemma addition_error_propagation_ulp_accuracy:
-  assumes "ulp_accuracy a_real (a_float::('e,'f) float) a_accuracy"
-  and "ulp_accuracy b_real (b_float::('e,'f) float) b_accuracy"
-  and "1 < LENGTH('e)"
-  and "1 < LENGTH('f)"
-  and "sign a_float = 0" and "sign b_float = 0"
-  and "\<bar>valof a_float + valof b_float\<bar> < threshold TYPE(('e, 'f) float)"
+  assumes "\<bar>valof a_float + valof b_float\<bar> < threshold TYPE(('e, 'f) float)"
   shows "ulp_accuracy (a_real + b_real) (fadd To_nearest a_float b_float) (a_accuracy + b_accuracy + 0.5)"
 proof -
   have step_1: "valof (fadd To_nearest a_float b_float) = valof (
                  round To_nearest (valof a_float + valof b_float)::('e,'f) float)" 
     apply(simp add:fadd_def valof_zerosign del:round.simps)
-    using assms ulp_accuracy_def float_distinct_finite by blast
+    using assms context_assumptions ulp_accuracy_def float_distinct_finite by blast
   moreover obtain rounded_sum where rounded_sum_def: "rounded_sum = (round To_nearest (valof a_float + valof b_float)::('e,'f) float)" by blast 
   ultimately have ulp_accuracy_same: "ulp_accuracy (a_real + b_real) (fadd To_nearest a_float b_float) (a_accuracy + b_accuracy + 0.5) =
     ulp_accuracy (a_real + b_real) rounded_sum (a_accuracy + b_accuracy + 0.5)" using valof_same_ulp_accuracy_same by blast 
   from step_1 rounded_sum_def have ulp_same: "ulp (fadd To_nearest a_float b_float) = ulp rounded_sum" using abs_valof_e_exp_e exp_e_ulp_e by metis
   
   with assms addition_error_propagation_distance have "\<bar>(valof a_float + valof b_float) - (a_real+b_real)\<bar> \<le> (a_accuracy+b_accuracy) * ulp rounded_sum" by metis
-  moreover from rounding_0_5_ulp ulp_accuracy_def assms rounded_sum_def have "\<bar>valof rounded_sum - (valof a_float + valof b_float)\<bar> \<le> 0.5 * ulp rounded_sum" by fast
+  moreover from rounding_0_5_ulp ulp_accuracy_def assms context_assumptions rounded_sum_def have "\<bar>valof rounded_sum - (valof a_float + valof b_float)\<bar> \<le> 0.5 * ulp rounded_sum" by fast
   ultimately have rounded_sum_dist: "\<bar>valof rounded_sum - (a_real+b_real)\<bar> \<le> (0.5+a_accuracy+b_accuracy) * ulp rounded_sum" by argo
 
   from is_finite_closest have "is_finite (closest valof (\<lambda>a::('e, 'f) float. even (fraction a)) (Collect is_finite) (valof a_float + valof b_float))" by blast

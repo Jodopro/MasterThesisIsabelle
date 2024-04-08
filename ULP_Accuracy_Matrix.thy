@@ -194,84 +194,44 @@ lemma vector_multiplication_helper:
       and "dim_vec afs = dim_vec bfs"
       and "\<forall>i\<in>set (is::int list). (0 \<le> i \<and> i < dim_vec afs)"
 shows "ulp_accuracy (fold (\<lambda> i s.  (ars $ nat i) * (brs $ nat i) + s) is 0) (fold (\<lambda> i s. fmul_add To_nearest (afs $ nat i) (bfs $ nat i) s) is 0) ((2*a_accuracy + 2*b_accuracy + 0.5)*(length is)) \<and> IEEE.sign (fold (\<lambda> i s. fmul_add To_nearest (afs $ nat i) (bfs $ nat i) s) is 0) = 0 "
-  
-  (*proof (induction "is" arbitrary:afs bfs ars brs)*)
-  (*using assms proof (induction "is" rule: rev_induct)*)
-  using assms proof (induction "rev is" arbitrary: "is")
+  using assms proof (induction "is" rule: rev_induct)
     case Nil
-    have reals_0: "(fold (\<lambda>i::int. (+) (ars $ nat i * brs $ nat i)) (map int []) (0::real)) = 0" by(simp add:)
-    moreover from Nil have floats_0: "(fold (\<lambda>i::int. fmul_add To_nearest (afs $ nat i) (bfs $ nat i)) (map int []) (0::('e, 'f) IEEE.float)) = 0" by(simp add:)
-    
-    have "(((2::real) * a_accuracy + (2::real) * b_accuracy + (5::real) / (10::real)) * (length [])) = 0" by simp
-    with ulp_accuracy_zero reals_0 floats_0 Nil have acc: "ulp_accuracy (fold (\<lambda>i::int. (+) (ars $ nat i * brs $ nat i)) (map int []) (0::real)) (fold (\<lambda>i::int. fmul_add To_nearest (afs $ nat i) (bfs $ nat i)) (map int []) (0::('e, 'f) IEEE.float))
-     (((2::real) * a_accuracy + (2::real) * b_accuracy + (5::real) / (10::real)) * (length []))" by force
-    with floats_0 zero_simps(1) Nil show ?case by fastforce
+    with ulp_accuracy_zero zero_simps(1) 
+    show ?case apply simp by blast
   next
-    case (Cons a is')
-    then have "set(is') \<subseteq> set(rev is)"
-      by (metis set_subset_Cons)
-    then have "set(rev (is')) \<subseteq> set(is)" by auto
-    with Cons have subset_precondition: "\<forall>i\<in>set (rev (is')). (0) \<le> i \<and> i < dim_vec (afs::('e, 'f) IEEE.float vec)" by auto
+    case (snoc x xs)
+    from snoc(12) have subset_precondition: "\<forall>i\<in>set (xs). (0) \<le> i \<and> i < dim_vec (afs::('e, 'f) float vec)" by force
 
-    from Cons have "is = rev ((a) # (is'))" by force
-    then have new_is_def: "is = (rev is') @ [a]" by auto
+    from fold_append have folded_floats: "(fold (\<lambda> i s. fmul_add To_nearest (afs $ nat i) (bfs $ nat i) s) (xs @ [x]) 0) = fmul_add To_nearest (afs $ nat x) (bfs $ nat x) (fold (\<lambda> i s. fmul_add To_nearest (afs $ nat i) (bfs $ nat i) s) (xs) 0)" by simp
+    with three_mul_added_numbers(4) snoc(10) have fin_c: "is_finite (fold (\<lambda> i s. fmul_add To_nearest (afs $ nat i) (bfs $ nat i) s) (xs) 0)" by auto
 
-    from fold_append new_is_def have folded_floats: "(fold (\<lambda> i s. fmul_add To_nearest (afs $ nat i) (bfs $ nat i) s) (is) 0) = fmul_add To_nearest (afs $ nat a) (bfs $ nat a) (fold (\<lambda> i s. fmul_add To_nearest (afs $ nat i) (bfs $ nat i) s) (rev is') 0)" by simp
-    with three_mul_added_numbers(4) Cons.prems(9) have fin_c: "is_finite (fold (\<lambda> i s. fmul_add To_nearest (afs $ nat i) (bfs $ nat i) s) (rev is') 0)" by auto
-    from fold_append new_is_def have folded_reals: "(fold (\<lambda> i s.  (ars $ nat i) * (brs $ nat i) + s) is 0) =  (ars $ nat a) * (brs $ nat a) + (fold (\<lambda> i s.  (ars $ nat i) * (brs $ nat i) + s) (rev is') 0)" by simp
-
-    from folded_floats Cons.prems(9) have fin_total: "is_finite
-   (fmul_add To_nearest (afs $ nat a) (bfs $ nat a) (fold (\<lambda> i s. fmul_add To_nearest (afs $ nat i) (bfs $ nat i) s) (rev is') 0))" by presburger
-      
-    have rev_rev: "(is') = rev (rev (is'))" by simp
-    then have precondition: "ulp_accuracy (fold (\<lambda>i. (+) ((ars::real vec) $ nat i * (brs::real vec) $ nat i)) (rev is') (0::real))
-     (fold (\<lambda>i::int. fmul_add To_nearest ((afs::('e, 'f) IEEE.float vec) $ nat i) ((bfs::('e, 'f) IEEE.float vec) $ nat i))
-       (rev is') (0::('e, 'f) IEEE.float))
-     (((2::real) * (a_accuracy::real) + (2::real) * (b_accuracy::real) + (5::real) / (10::real)) * real (length (rev is'))) \<and>
-    IEEE.sign (fold (\<lambda>i::int. fmul_add To_nearest (afs $ nat i) (bfs $ nat i)) (rev is') (0::('e, 'f) IEEE.float)) =
-    (0::nat)" using Cons(1)[OF rev_rev Cons.prems(1) Cons.prems(2) Cons.prems(3) Cons.prems(4) Cons.prems(5) Cons.prems(6) Cons.prems(7) Cons.prems(8) fin_c Cons.prems(10) subset_precondition] by blast
+    from snoc(12) have a_l: "nat x < dim_vec afs" by auto
+    with vec_all2_dim snoc(2) have a_l2: "nat x < dim_vec ars" by metis
+    from a_l snoc(11) have b_l: "nat x < dim_vec bfs" by presburger
+    with vec_all2_dim snoc(3) have b_l2: "nat x < dim_vec brs" by metis
     
-
-    from Cons(2) have "a\<in>set(rev is)"
-      by (metis list.set_intros(1))
-    with Cons.prems(11) have a_l: "nat a < dim_vec afs" by fastforce
-    with vec_all2_dim Cons.prems(1) have a_l2: "nat a < dim_vec ars" by metis
-    from a_l vec_all2_dim Cons.prems(2) Cons.prems(10) have b_l: "nat a < dim_vec brs" by metis
     
-    have u_a1: "ulp_accuracy (ars $ nat a) (afs $ nat a) (a_accuracy::real)" using vec_all2_map[OF Cons.prems(1) a_l] by blast 
-    have u_a2: "ulp_accuracy (brs $ nat a) (bfs $ nat a) (b_accuracy::real)" using vec_all2_map[OF Cons.prems(2)] a_l Cons.prems(10) by simp
-    have u_a3: "ulp_accuracy (fold (\<lambda>i. (+) ((ars::real vec) $ nat i * (brs::real vec) $ nat i)) (rev is') (0::real)) (fold (\<lambda>i. fmul_add To_nearest ((afs::('e, 'f) IEEE.float vec) $ nat i) ((bfs::('e, 'f) IEEE.float vec) $ nat i))
-     (rev is') (0::('e, 'f) IEEE.float)) (((2::real) * (a_accuracy::real) + (2::real) * (b_accuracy::real) + (5::real) / (10::real)) * real (length (rev is')))" using precondition by force
-    have s1: "IEEE.sign ((afs::('e, 'f) IEEE.float vec) $ nat a) = (0)" using Cons.prems(3)
+    have u_a1: "ulp_accuracy (ars $ nat x) (afs $ nat x) (a_accuracy::real)" using vec_all2_map[OF snoc(2) a_l] by blast 
+    have u_a2: "ulp_accuracy (brs $ nat x) (bfs $ nat x) (b_accuracy::real)" using vec_all2_map[OF snoc(3) b_l] by blast
+    have u_a3: "ulp_accuracy (fold (\<lambda>i. (+) ((ars::real vec) $ nat i * (brs::real vec) $ nat i)) (xs) (0::real)) (fold (\<lambda>i. fmul_add To_nearest ((afs::('e, 'f) float vec) $ nat i) ((bfs::('e, 'f) float vec) $ nat i))
+     (xs) (0::('e, 'f) float)) (((2::real) * (a_accuracy::real) + (2::real) * (b_accuracy::real) + (5::real) / (10::real)) * real (length (xs)))" using snoc fin_c subset_precondition by blast
+    have s1: "IEEE.sign ((afs::('e, 'f) float vec) $ nat x) = (0)" using snoc(4)
       by (simp add: a_l vec_all_def)
-    have s2: "IEEE.sign ((bfs::('e, 'f) IEEE.float vec) $ nat a) = (0::nat)" using Cons.prems(3) Cons.prems(10) 
-      apply (simp add: a_l vec_all_def)
-      using a_l vec_setI by auto
-    have s3: "IEEE.sign ((fold (\<lambda>i. fmul_add To_nearest ((afs::('e, 'f) IEEE.float vec) $ nat i) ((bfs::('e, 'f) IEEE.float vec) $ nat i))
-     (rev is') (0::('e, 'f) IEEE.float))) = (0::nat)"  using precondition by force
-    have r1: "(0::real) \<le> (ars::real vec) $ nat a" using Cons.prems(4) by (simp add: a_l2 vec_all_def)
-    have r2: "ars $ nat a \<le> (1::real)" using Cons.prems(4) by (simp add: a_l2 vec_all_def)
-    have r3: "(0::real) \<le> (brs::real vec) $ nat a" using Cons.prems(4) by (simp add: b_l vec_all_def)
-    have r4: "brs $ nat a \<le> (1::real)" using Cons.prems(4) by (simp add: b_l vec_all_def)
-    
-    from  multiplication_addition_error_propagation_ulp_accuracy2[OF u_a1 u_a2 u_a3 Cons.prems(5) Cons.prems(8) s1 s2 s3 fin_total Cons.prems(6) Cons.prems(7) r1 r2 r3 r4] have
-      "ulp_accuracy
- ((ars::real vec) $ nat (a) * (brs::real vec) $ nat a +
-  fold (\<lambda>i::int. (+) (ars $ nat i * brs $ nat i)) (rev (is')) (0::real))
- (fmul_add To_nearest ((afs::('e, 'f) IEEE.float vec) $ nat a) ((bfs::('e, 'f) IEEE.float vec) $ nat a)
-   (fold (\<lambda>i::int. fmul_add To_nearest (afs $ nat i) (bfs $ nat i)) (rev is') (0::('e, 'f) IEEE.float)))
- ((2::real) * (a_accuracy::real) + (2::real) * (b_accuracy::real) +
-  ((2::real) * a_accuracy + (2::real) * b_accuracy + (5::real) / (10::real)) * real (length (rev is')) +
-  (5::real) / (10::real))" by blast
-    then have "ulp_accuracy
- (fold (\<lambda>i. (+) ((ars::real vec) $ nat i * (brs::real vec) $ nat i)) is (0::real))
- (fold (\<lambda>i. fmul_add To_nearest ((afs::('e, 'f) IEEE.float vec) $ nat i) ((bfs::('e, 'f) IEEE.float vec) $ nat i))
- is (0::('e, 'f) IEEE.float))
- (((2::real) * a_accuracy + (2::real) * b_accuracy + (5::real) / (10::real)) * real (1 + length (rev is')))" apply(simp add:folded_floats folded_reals) by argo
-    with new_is_def have "ulp_accuracy (fold (\<lambda>i. (+) (ars $ nat i * brs $ nat i)) is (0::real))
-   (fold (\<lambda>i::int. fmul_add To_nearest (afs $ nat i) (bfs $ nat i)) is (0::('e, 'f) IEEE.float))
-   (((2::real) * a_accuracy + (2::real) * b_accuracy + (5::real) / (10::real)) * real (length is))" by auto
-    with three_mul_added_numbers_positive[OF fin_total s1 s2 s3] show ?case by(simp add:folded_floats)
+    have s2: "IEEE.sign ((bfs::('e, 'f) float vec) $ nat x) = (0)" using snoc(4) 
+      by (simp add: b_l vec_all_def)
+    have s3: "IEEE.sign ((fold (\<lambda>i. fmul_add To_nearest ((afs::('e, 'f) float vec) $ nat i) ((bfs::('e, 'f) float vec) $ nat i))
+     (xs) (0::('e, 'f) float))) = (0::nat)" using snoc fin_c subset_precondition by blast
+    have fin_total: "is_finite
+   (fmul_add To_nearest (afs $ nat x) (bfs $ nat x) (fold (\<lambda> i s. fmul_add To_nearest (afs $ nat i) (bfs $ nat i) s) (xs) 0))" 
+      using folded_floats snoc(10) by argo
+    have r1: "(0::real) \<le> ars $ nat x" using snoc(5) by (simp add: a_l2 vec_all_def)
+    have r2: "ars $ nat x \<le> (1::real)" using snoc(5) by (simp add: a_l2 vec_all_def)
+    have r3: "(0::real) \<le> brs $ nat x" using snoc(5) by (simp add: b_l2 vec_all_def)
+    have r4: "brs $ nat x \<le> (1::real)" using snoc(5) by (simp add: b_l2 vec_all_def)
+
+    from  multiplication_addition_error_propagation_ulp_accuracy2[OF u_a1 u_a2 u_a3 snoc(6) snoc(9) s1 s2 s3 fin_total snoc(7) snoc(8) r1 r2 r3 r4] 
+    show ?case apply simp
+    using three_mul_added_numbers_positive[OF fin_total s1 s2 s3] by argo
   qed
 
 
@@ -280,29 +240,16 @@ lemma vector_multiplication_real_vec_mul:
       and b_rel: "vec_all2 (\<lambda>f r. ulp_accuracy r (f::('e,'f) float) b_accuracy) (bfs::('e, 'f) float vec) brs"
       and signs: "vec_all (\<lambda>f. IEEE.sign f = 0) afs \<and> vec_all (\<lambda>f. IEEE.sign f = 0) bfs"
       and probs: "vec_all (\<lambda>r. 0 \<le> r \<and> r \<le> 1) ars \<and> vec_all (\<lambda>r. 0 \<le> r \<and> r \<le> 1) brs"
-      and "1 < LENGTH('e)"
-      and "a_accuracy \<le> (2::real) ^ LENGTH('f)"
-      and "b_accuracy \<le> (2::real) ^ LENGTH('f)"
-      and "1 < LENGTH('f)"
-      and "is_finite (float_vec_mul afs bfs)"
-      and "dim_vec afs = dim_vec bfs"
+      and len_e: "1 < LENGTH('e)"
+      and lim_a: "a_accuracy \<le> (2::real) ^ LENGTH('f)"
+      and lim_b: "b_accuracy \<le> (2::real) ^ LENGTH('f)"
+      and len_f: "1 < LENGTH('f)"
+      and fin: "is_finite (float_vec_mul afs bfs)"
+      and dim: "dim_vec afs = dim_vec bfs"
 shows "ulp_accuracy (real_vec_mul ars brs) (float_vec_mul afs bfs) ((2*a_accuracy + 2*b_accuracy + 0.5)*dim_vec afs) \<and> IEEE.sign (float_vec_mul afs bfs) = 0 "
-  apply(simp add:real_vec_mul_def float_vec_mul_def)
-proof -
-  have s1: "is_finite
- (fold (\<lambda>i::int. fmul_add To_nearest ((afs::('e, 'f) IEEE.float vec) $ nat i) ((bfs::('e, 'f) IEEE.float vec) $ nat i))
-   [0::int..int (dim_vec afs) - (1::int)] (0::('e, 'f) IEEE.float))" using assms(9) by(simp add: float_vec_mul_def)
-  have s2: "\<forall>i::int\<in>set [0::int..int (dim_vec (afs::('e, 'f) IEEE.float vec)) - (1::int)]. (0::int) \<le> i \<and> i < int (dim_vec afs)" by force
-  from vector_multiplication_helper[where ?is="[0::int..int (dim_vec afs) - (1::int)]", OF assms(1) assms(2) assms(3) assms(4) assms(5) assms(6) assms(7) assms(8) s1 assms(10) s2] show "ulp_accuracy (fold (\<lambda>i::int. (+) (ars $ nat i * brs $ nat i)) [0::int..int (dim_vec ars) - (1::int)] (0::real))
-     (fold (\<lambda>i::int. fmul_add To_nearest (afs $ nat i) (bfs $ nat i)) [0::int..int (dim_vec afs) - (1::int)]
-       (0::('e, 'f) IEEE.float))
-     (((2::real) * a_accuracy + (2::real) * b_accuracy + (1::real) / (2::real)) * real (dim_vec afs)) \<and>
-    IEEE.sign
-     (fold (\<lambda>i::int. fmul_add To_nearest (afs $ nat i) (bfs $ nat i)) [0::int..int (dim_vec afs) - (1::int)]
-       (0::('e, 'f) IEEE.float)) =
-    (0::nat)"
-    using a_rel vec_all2_dim by fastforce
-qed
+  using assms(9) apply(simp add:real_vec_mul_def float_vec_mul_def )
+  using assms(1) assms(10) vec_all2_dim vector_multiplication_helper[where ?is="[0::int..int (dim_vec afs) - (1::int)]", OF assms(1) assms(2) assms(3) assms(4) assms(5) assms(6) assms(7) assms(8)] by force
+
 
 lemma vector_multiplication:
   assumes a_rel: "vec_all2 (\<lambda>f r. ulp_accuracy r (f::('e,'f) float) a_accuracy) (afs::('e, 'f) float vec) ars"
@@ -316,12 +263,8 @@ lemma vector_multiplication:
       and "is_finite (float_vec_mul afs bfs)"
       and "dim_vec afs = dim_vec bfs"
 shows "ulp_accuracy (ars \<bullet> brs) (float_vec_mul afs bfs) ((2*a_accuracy + 2*b_accuracy + 0.5)*dim_vec afs) \<and> IEEE.sign (float_vec_mul afs bfs) = 0 "
-proof-
-  from assms(10) a_rel b_rel vec_all2_dim have "dim_vec ars = dim_vec brs" by metis
-  then have "(ulp_accuracy (ars \<bullet> brs) (float_vec_mul afs bfs) ((2*a_accuracy + 2*b_accuracy + 0.5)*dim_vec afs) \<and> IEEE.sign (float_vec_mul afs bfs) = 0) =
-             (ulp_accuracy (real_vec_mul ars brs) (float_vec_mul afs bfs) ((2*a_accuracy + 2*b_accuracy + 0.5)*dim_vec afs) \<and> IEEE.sign (float_vec_mul afs bfs) = 0 )" by(simp add:real_vec_mul_scalar_product)
-  then show ?thesis using assms vector_multiplication_real_vec_mul by blast
-qed
+  using vector_multiplication_real_vec_mul[OF a_rel b_rel signs probs assms(5) assms(6) assms(7) assms(8) assms(9) assms(10)] apply simp
+  using assms(10) a_rel b_rel vec_all2_dim real_vec_mul_scalar_product by metis
 
 (*
 definition mult_mat_vec :: "'a :: semiring_0 mat \<Rightarrow> 'a vec \<Rightarrow> 'a vec" (infixl "*\<^sub>v" 70)
@@ -339,12 +282,12 @@ lemma matrix_multiplication_helper:
       and b_rel: "vec_all2 (\<lambda>f r. ulp_accuracy r (f::('e,'f) float) b_accuracy) (bfs::('e, 'f) float vec) brs"
       and signs: "mat_all (\<lambda>f. IEEE.sign f = 0) afs \<and> vec_all (\<lambda>f. IEEE.sign f = 0) bfs"
       and probs: "mat_all (\<lambda>r. 0 \<le> r \<and> r \<le> 1) ars \<and> vec_all (\<lambda>r. 0 \<le> r \<and> r \<le> 1) brs"
-      and "1 < LENGTH('e)"
-      and "a_accuracy \<le> (2::real) ^ LENGTH('f)"
-      and "b_accuracy \<le> (2::real) ^ LENGTH('f)"
-      and "1 < LENGTH('f)"
-      and "vec_all (is_finite) (float_mult_mat_vec afs bfs)"
-      and "dim_col afs = dim_vec bfs"
+      and len_e: "1 < LENGTH('e)"
+      and lim_a: "a_accuracy \<le> (2::real) ^ LENGTH('f)"
+      and lim_b: "b_accuracy \<le> (2::real) ^ LENGTH('f)"
+      and len_f: "1 < LENGTH('f)"
+      and fin: "vec_all (is_finite) (float_mult_mat_vec afs bfs)"
+      and dim: "dim_col afs = dim_vec bfs"
       and "(i::nat) < dim_vec (float_mult_mat_vec afs bfs)"
     shows "dim_vec (float_mult_mat_vec afs bfs) = dim_row ars \<and>
         ulp_accuracy ((ars *\<^sub>v brs) $ i) (float_mult_mat_vec afs bfs $ i)
@@ -384,12 +327,12 @@ lemma matrix_multiplication:
       and b_rel: "vec_all2 (\<lambda>f r. ulp_accuracy r (f::('e,'f) float) b_accuracy) (bfs::('e, 'f) float vec) brs"
       and signs: "mat_all (\<lambda>f. IEEE.sign f = 0) afs \<and> vec_all (\<lambda>f. IEEE.sign f = 0) bfs"
       and probs: "mat_all (\<lambda>r. 0 \<le> r \<and> r \<le> 1) ars \<and> vec_all (\<lambda>r. 0 \<le> r \<and> r \<le> 1) brs"
-      and "1 < LENGTH('e)"
-      and "a_accuracy \<le> (2::real) ^ LENGTH('f)"
-      and "b_accuracy \<le> (2::real) ^ LENGTH('f)"
-      and "1 < LENGTH('f)"
-      and "vec_all (is_finite) (float_mult_mat_vec afs bfs)"
-      and "dim_col afs = dim_vec bfs"
+      and len_e: "1 < LENGTH('e)"
+      and lim_a: "a_accuracy \<le> (2::real) ^ LENGTH('f)"
+      and lim_b: "b_accuracy \<le> (2::real) ^ LENGTH('f)"
+      and len_f: "1 < LENGTH('f)"
+      and fin: "vec_all (is_finite) (float_mult_mat_vec afs bfs)"
+      and dim: "dim_col afs = dim_vec bfs"
     shows "vec_all2 (\<lambda>f r. ulp_accuracy r f ((2*a_accuracy + 2*b_accuracy + 0.5)*dim_vec bfs)) (float_mult_mat_vec afs bfs) (mult_mat_vec ars brs) \<and> vec_all (\<lambda>f. IEEE.sign f = 0) (float_mult_mat_vec afs bfs)"
   apply(simp add: vec_all2_def vec_all_def)
 proof -
@@ -614,14 +557,14 @@ lemma matrix_multiplication_iteratively:
       and b_rel: "vec_all2 (\<lambda>f r. ulp_accuracy r (f::('e,'f) float) 0) (bfs::('e, 'f) float vec) brs"
       and signs: "mat_all (\<lambda>f. IEEE.sign f = 0) afs \<and> vec_all (\<lambda>f. IEEE.sign f = 0) bfs"
       and probs: "mat_all (\<lambda>r. 0 \<le> r \<and> r \<le> 1) ars \<and> vec_all (\<lambda>r. 0 \<le> r \<and> r \<le> 1) brs"
-      and "1 < LENGTH('e)"
-      and "(\<Sum>i=1..k. (2*dim_vec bfs)^i)/2 \<le> (2::real) ^ LENGTH('f)"
-      and "1 < LENGTH('f)"
-      and "vec_all (is_finite) (((float_mult_mat_vec afs)^^k) bfs)"
-      and "dim_col afs = dim_vec bfs"
-      and "dim_col afs = dim_row afs"
-      and "mat_all_col (\<lambda>v::real vec. sum (($) v) {0::nat..<dim_vec v} = (1::real)) (ars::real mat)" 
-      and "sum (($) (brs::real vec)) {0::nat..<dim_vec brs} = (1::real)"
+      and len_e: "1 < LENGTH('e)"
+      and lim: "(\<Sum>i=1..k. (2*dim_vec bfs)^i)/4 \<le> (2::real) ^ LENGTH('f)"
+      and len_f: "1 < LENGTH('f)"
+      and fin: "vec_all (is_finite) (((float_mult_mat_vec afs)^^k) bfs)"
+      and dim_1: "dim_col afs = dim_vec bfs"
+      and dim_2: "dim_col afs = dim_row afs"
+      and sum_1: "mat_all_col (\<lambda>v::real vec. sum (($) v) {0::nat..<dim_vec v} = (1::real)) (ars::real mat)" 
+      and sum_2: "sum (($) (brs::real vec)) {0::nat..<dim_vec brs} = (1::real)"
     shows "vec_all2 (\<lambda>f r. ulp_accuracy r f ((\<Sum>i=1..k. (2*dim_vec bfs)^i)/4)) (((float_mult_mat_vec afs)^^k) bfs)  (((mult_mat_vec ars)^^k) brs) \<and> vec_all (\<lambda>f. IEEE.sign f = 0)  (((float_mult_mat_vec afs)^^k) bfs)"
   using assms proof(induction k)
     case 0
@@ -629,7 +572,7 @@ lemma matrix_multiplication_iteratively:
   next
     case (Suc k)
     have "real (sum ((^) ((2::nat) * dim_vec bfs)) {1::nat..k::nat}) / (4::real) \<le> real (sum ((^) ((2::nat) * dim_vec bfs)) {1::nat..Suc k}) / (4::real)" by fastforce
-    with Suc.prems(6) have new_6:"real (sum ((^) ((2::nat) * dim_vec (bfs::('e, 'f) IEEE.float vec))) {1::nat..(k::nat)}) / (2::real)
+    with Suc.prems(6) have new_6:"real (sum ((^) ((2::nat) * dim_vec (bfs::('e, 'f) IEEE.float vec))) {1::nat..(k::nat)}) / (4::real)
   \<le> (2::real) ^ LENGTH('f) " by linarith
     from Suc.prems(8) have tmp_8_1: "vec_all is_finite (float_mult_mat_vec afs ((float_mult_mat_vec afs ^^ k) bfs))" by auto
     from matrix_multiplication_iteratively_dimension Suc.prems(9) Suc.prems(10) have tmp_8_2: "dim_col (afs::('e, 'f) IEEE.float mat) = dim_vec ((float_mult_mat_vec afs ^^ (k::nat)) (bfs::('e, 'f) IEEE.float vec))" by metis

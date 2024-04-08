@@ -341,8 +341,7 @@ lemma ulp_0_5_exists_threshold:
     and a4: "1 < LENGTH('e)"
   shows "(\<exists>(b::('e, 'f) float). ulp_accuracy a b 0.5)"
 proof -
-  from assms have "a \<ge> largest TYPE(('e, 'f)float) \<and> a < threshold TYPE(('e, 'f)float)" by auto
-  then have "\<bar>largest TYPE(('e, 'f)float) - a\<bar> \<le> threshold TYPE(('e, 'f)float) - largest TYPE(('e, 'f)float)" by simp
+  from assms have "\<bar>largest TYPE(('e, 'f)float) - a\<bar> \<le> threshold TYPE(('e, 'f)float) - largest TYPE(('e, 'f)float)" by simp
   with assms distance_threshold_largets have "\<bar>largest TYPE(('e, 'f)float) - a\<bar> \<le> 0.5 * ulp (topfloat::('e, 'f) float)" by metis
   then have "ulp_accuracy a (topfloat::('e, 'f) float) 0.5" 
     using assms by (simp add:ulp_accuracy_def finite_topfloat valof_topfloat)
@@ -562,42 +561,31 @@ lemma closest_means_ulp_0_5:
       } note val_b_simplified = this
       
       { 
-        have tmp: "((2^LENGTH('f))-1)*(2 ^ (exponent b-1) / 2 ^ (bias TYPE(('e, 'f) float)+LENGTH('f))) > ((2::real) ^ (exponent b - 1) / (2::real) ^ (bias TYPE(('e, 'f) float) + LENGTH('f)))" 
+        have step_1: "((2^LENGTH('f))-1)*(2 ^ (exponent b-1) / 2 ^ (bias TYPE(('e, 'f) float)+LENGTH('f))) > ((2::real) ^ (exponent b - 1) / (2::real) ^ (bias TYPE(('e, 'f) float) + LENGTH('f)))" 
           apply(simp add:div_less divide_less_eq frac_less) 
           using assms power_2_at_least_4 by fastforce
         from assms ulp_accuracy_def bias_def ulp_equivelance a half_times_power have "\<bar>valof b - a\<bar> \<le> 0.5*((2::real) ^ max (IEEE.exponent b) (1::nat) / (2::real) ^ (bias TYPE(('e, 'f) float) + LENGTH('f)))" by metis
         with a half_times_power have val_b_min_a: "\<bar>valof b - a\<bar> \<le> ((2::real) ^ (exponent b - 1) / (2::real) ^ (bias TYPE(('e, 'f) float) + LENGTH('f)))" by auto
-        with to_disprove a b to_disprove val_b_simplified val_c_simplified have "\<bar>valof c - a\<bar> \<ge> (2^LENGTH('f)) * (2 ^ (exponent b-1) / 2 ^ (bias TYPE(('e, 'f) float)+LENGTH('f))) - ((2::real) ^ (exponent b - 1) / (2::real) ^ (bias TYPE(('e, 'f) float) + LENGTH('f)))"
+        with to_disprove a b val_b_simplified val_c_simplified have "\<bar>valof c - a\<bar> \<ge> (2^LENGTH('f)) * (2 ^ (exponent b-1) / 2 ^ (bias TYPE(('e, 'f) float)+LENGTH('f))) - ((2::real) ^ (exponent b - 1) / (2::real) ^ (bias TYPE(('e, 'f) float) + LENGTH('f)))"
           apply (simp add: power_add) by argo
-        with val_b_min_a tmp have "\<bar>valof c - a\<bar> > \<bar>valof b - a\<bar>" by argo
+        with val_b_min_a step_1 have "\<bar>valof c - a\<bar> > \<bar>valof b - a\<bar>" by argo
       } note c_min_a_bigger = this
       with assms have "exponent c = exponent b - (1::nat)" by(auto simp add:ulp_accuracy_def)
     } note exp_c_exp_b_min_1 = this
     with assms have exp_c_exp_b_min_1: "\<not> exponent b \<le> exponent c \<Longrightarrow> exponent c = exponent b - (1::nat)" by fastforce
     with ulp_equivelance have ulp_b_2_ulp_c: "\<not> exponent b \<le> exponent c \<Longrightarrow> exponent b \<noteq> (1::nat) \<Longrightarrow> ulp b = 2*ulp c" by(simp add:ulp_equivelance pow_f_min_1)
-    from exp_c_exp_b_min_1 have exp_c_bigger_equal_1: "\<not> exponent b \<le> exponent c \<Longrightarrow> exponent b \<noteq> (1::nat) \<Longrightarrow> max (exponent c) 1 = exponent c" by linarith
     from exp_c_exp_b_min_1 have exp_c_not_0: "\<not> exponent b \<le> exponent c \<Longrightarrow> exponent b \<noteq> (1::nat) \<Longrightarrow>exponent c \<noteq> 0" by linarith
+    then have exp_c_bigger_equal_1: "\<not> exponent b \<le> exponent c \<Longrightarrow> exponent b \<noteq> (1::nat) \<Longrightarrow> max (exponent c) 1 = exponent c" by fastforce
+    
 
     {
       assume a:"\<not> IEEE.exponent b \<le> IEEE.exponent c" and b:"IEEE.exponent b \<noteq> (1::nat)"
-
-      have "(2 ^ LENGTH('f) + real (fraction c)) \<le> (2 ^ LENGTH('f)  + 2 ^ LENGTH('f) - (1::real))"    
-        using real_le_power_numeral_diff float_frac_le by auto
-      then have val_c_expanded: "\<bar>valof c\<bar> \<le> (2 ^ (exponent c) / 2 ^ bias TYPE(('e, 'f) float)) *
-              (2 ^ LENGTH('f) + 2 ^ LENGTH('f) - 1) / 2 ^ LENGTH('f)"
-        using a b exp_c_exp_b_min_1 by(simp add:div_less divide_right_mono abs_valof_eq2)
       
-      from a b exp_c_exp_b_min_1 have  val_b_expanded: "\<bar>valof b\<bar> \<ge> (2 ^ (exponent c) / 2 ^ bias TYPE(('e, 'f) float)) *
-              (2 ^ LENGTH('f) + 2 ^ LENGTH('f)) / 2 ^ LENGTH('f)"
-        using mult_left_mono[where a="(2 ^ LENGTH('f)) / 2 ^ LENGTH('f)" and b="(2 ^ LENGTH('f) + real (fraction b)) / 2 ^ LENGTH('f)" and c = "(2::nat)* (2 ^ (exponent c) / 2 ^ bias TYPE(('e, 'f) float))"]
-        by (simp add:abs_valof_eq2 pow_f_min_1 power_commutes)
-
       from a b have "\<bar>\<bar>valof b\<bar> - \<bar>valof c\<bar>\<bar> = \<bar>valof b - valof c\<bar>" apply(cases "sign b = 0") by (simp_all add: sign_pos sign_equality sign_cases valof_nonpos valof_nonneg)
-      with a b abs_valof_order_exp have val_b_min_val_c: "\<bar>valof b - valof c\<bar> = \<bar>valof b\<bar> - \<bar>valof c\<bar>"
-        by (metis abs_of_nonneg diff_ge_0_iff_ge linorder_le_less_linear order.asym)
-      with val_c_expanded val_b_expanded have "\<bar>valof b - valof c\<bar> \<ge> (2 ^ (exponent c) / 2 ^ bias TYPE(('e, 'f) float)) / 2 ^ LENGTH('f)"
-        by (smt (verit, ccfv_threshold) diff_divide_distrib factor_minus)
-      then have val_b_min_val_c_1_ulp: "\<bar>valof b - valof c\<bar> \<ge> ulp c" using a b exp_c_bigger_equal_1 by (auto simp add:bias_def ulp_equivelance ulp_divisor_rewrite)
+      moreover from a b exp_c_exp_b_min_1 abs_valof_ge_exp_ge have val_b_g_val_c: "\<bar>valof b\<bar> > \<bar>valof c\<bar>"
+        using linorder_not_less by blast
+      ultimately have val_b_min_val_c: "\<bar>valof b - valof c\<bar> = \<bar>valof b\<bar> - \<bar>valof c\<bar>" 
+        by argo
       
       {
         assume to_disprove: "fraction c \<le>  (2::real) ^ LENGTH('f) - 2"
@@ -610,38 +598,39 @@ lemma closest_means_ulp_0_5:
         then have bad_val_c_expanded: "\<bar>valof c\<bar> \<le> (2 ^ (exponent c) / 2 ^ bias TYPE(('e, 'f) float)) *
               (2 ^ LENGTH('f) + 2 ^ LENGTH('f) - 2) / 2 ^ LENGTH('f)"
           using a b exp_c_exp_b_min_1 by(simp add:abs_valof_eq2)
-        with val_b_expanded val_b_min_val_c have "\<bar>valof b - valof c\<bar> \<ge> (2 ^ (exponent c) / 2 ^ bias TYPE(('e, 'f) float)) * 2 / 2 ^ LENGTH('f)"
-          by (smt (verit, ccfv_threshold) diff_divide_distrib factor_minus)
+        moreover from a b exp_c_exp_b_min_1 have "\<bar>valof b\<bar> \<ge> (2 ^ (exponent c) / 2 ^ bias TYPE(('e, 'f) float)) *
+              (2 ^ LENGTH('f) + 2 ^ LENGTH('f)) / 2 ^ LENGTH('f)"
+          using mult_left_mono[where a="(2 ^ LENGTH('f)) / 2 ^ LENGTH('f)" and b="(2 ^ LENGTH('f) + real (fraction b)) / 2 ^ LENGTH('f)" and c = "(2::nat)* (2 ^ (exponent c) / 2 ^ bias TYPE(('e, 'f) float))"]
+          by (simp add:abs_valof_eq2 pow_f_min_1 power_commutes)
+        ultimately  have "\<bar>valof b - valof c\<bar> \<ge> (2 ^ (exponent c) / 2 ^ bias TYPE(('e, 'f) float)) * 2 / 2 ^ LENGTH('f)"
+          using val_b_min_val_c by argo
         then have b_min_c: "\<bar>valof b - valof c\<bar> \<ge> ulp c * 2" using a b exp_c_bigger_equal_1 by (simp add: bias_def ulp_equivelance ulp_divisor_rewrite)
         from a b assms ulp_b_2_ulp_c exp_c_exp_b_min_1 have "\<bar>valof b - a\<bar> \<le> ulp c" by(simp add:ulp_accuracy_def)
-        moreover with assms have "\<bar>valof c - a\<bar> \<le> ulp c" using ulp_accuracy_def
-          using dual_order.trans by blast
-        ultimately have dist_is_ulp: "\<bar>valof b - a\<bar> = ulp c \<and> \<bar>valof c - a\<bar> = ulp c" using b_min_c by argo
-        from a b exp_c_not_0 ulp_is_smaller have "\<bar>valof c\<bar> > ulp c" by force
-        with dist_is_ulp have "\<bar>a\<bar> = \<bar>valof c\<bar> + ulp c \<or> \<bar>a\<bar> = \<bar>valof c\<bar> - ulp c" by argo
-        moreover from val_b_min_val_c_1_ulp val_b_min_val_c have "\<bar>valof c\<bar> \<le> \<bar>a\<bar>"
-          by (smt (verit) \<open>ulp (c::('e, 'f) IEEE.float) < \<bar>valof c\<bar>\<close> dist_is_ulp)
-        ultimately have "\<bar>a\<bar> = \<bar>valof c\<bar> + ulp c" 
-          by (metis abs_le_zero_iff add.commute add_cancel_right_left add_le_same_cancel2 diff_add_cancel dist_is_ulp)
+        moreover with assms have "\<bar>valof c - a\<bar> \<le> ulp c"
+          using ulp_accuracy_def dual_order.trans by blast
+        ultimately have dists: "\<bar>valof b - a\<bar> = ulp c \<and> \<bar>valof c - a\<bar> = ulp c" using b_min_c by argo
+        moreover from a b exp_c_not_0 ulp_is_smaller have "\<bar>valof c\<bar> > ulp c" by force
+        ultimately have "\<bar>a\<bar> = \<bar>valof c\<bar> + ulp c" using val_b_g_val_c by argo
         with ulp_increase_abs_diff assms have "\<bar>a\<bar> = \<bar>valof (ulp_increase c)\<bar>"
           by fastforce
         with valof_minus have "\<bar>a - valof (ulp_increase c)\<bar> = 0 \<or> \<bar>a - valof (- ulp_increase c)\<bar> = 0" by auto
-        then have "\<exists>(x::('e,'f) float). \<bar>a - valof x\<bar> = 0" by blast
-        then have smaller_dif_than_c: "\<exists>(x::('e,'f) float). \<bar>a - valof x\<bar> < \<bar>a - valof c\<bar>"
-          by (metis \<open>\<bar>valof (b::('e, 'f) IEEE.float) - (a::real)\<bar> = ulp (c::('e, 'f) IEEE.float) \<and> \<bar>valof c - a\<bar> = ulp c\<close> abs_minus_commute ulp_positive)
-        from ulp_increase_exp have "fraction (c::('e, 'f) IEEE.float) \<noteq> (2::nat) ^ LENGTH('f) - (1::nat) \<Longrightarrow> exponent (ulp_increase c) = exponent c" by blast
-        with ulp_increase_exp(2) assms exp_c_exp_b_min_1 eq_exp_eq_finite assms ulp_accuracy_def have "is_finite (ulp_increase c)"
-          by (metis exp_c_not_0 a diff_is_0_eq le_add_diff_inverse nat_le_linear)
-        with assms smaller_dif_than_c exp_c_not_0 a b have "False"
-          by (smt (verit) \<open>\<bar>a::real\<bar> = \<bar>valof (ulp_increase (c::('e, 'f) IEEE.float))\<bar>\<close> \<open>\<bar>valof (b::('e, 'f) IEEE.float) - (a::real)\<bar> = ulp (c::('e, 'f) IEEE.float) \<and> \<bar>valof c - a\<bar> = ulp c\<close> mem_Collect_eq ulp_increase_diff ulp_is_smaller)
+        moreover have "is_finite (ulp_increase c)"
+          using ulp_increase_exp assms exp_c_exp_b_min_1 ulp_accuracy_def eq_exp_eq_finite
+          by (smt (verit, best) Nat.diff_diff_eq a add_diff_inverse_nat b diff_is_0_eq exp_c_not_0 nat_diff_split nat_le_linear)
+        moreover then have "is_finite (- ulp_increase c)" by fastforce
+        ultimately have "\<exists>(x::('e,'f) float). \<bar>a - valof x\<bar> = 0 \<and> is_finite x" by blast
+        then have "\<exists>(x::('e,'f) float). \<bar>a - valof x\<bar> < \<bar>a - valof c\<bar> \<and> is_finite x"
+          using dists ulp_positive
+          by (metis eq_iff_diff_eq_0 zero_less_abs_iff)
+        with assms(3) have "False" by fastforce
       } note to_disprove_false2 = this
-      then have frac_c_with_real: "fraction c > (2::real) ^ LENGTH('f) - (2::nat)" by fastforce
-      then have  "fraction c \<ge> (2::nat) ^ LENGTH('f) - (1::nat)"
-        by (simp add: nat_le_real_less of_nat_diff)
-      with float_frac_le have frac_c: "real(fraction c) = (2::nat) ^ LENGTH('f) - (1::nat)"
+      then have "fraction c \<ge> (2::nat) ^ LENGTH('f) - (1::nat)"
+        apply (simp add: nat_le_real_less of_nat_diff) by argo
+      with float_frac_le have "real (fraction c) = (2::nat) ^ LENGTH('f) - (1::nat)"
         by (metis le_antisym)
       then have "(2::real) ^ LENGTH('f) + real (fraction c) = (2::nat) ^ LENGTH('f) + (2::nat) ^ LENGTH('f) - Suc (0::nat)"
-        apply auto by (smt (verit, ccfv_threshold) add_gr_0 less_eq_Suc_le of_nat_add of_nat_diff pos2 power_2_simp zero_less_power)
+        apply simp
+        by (metis Abs_fnat_hom_add Nat.diff_add_assoc nat_one_le_power not_less_eq_eq not_numeral_le_zero power_2_simp)
       then have val_c_eq: "\<bar>valof c\<bar> = (2 ^ (exponent c) / 2 ^ bias TYPE(('e, 'f) float)) *
               (2 ^ LENGTH('f) + (2::nat) ^ LENGTH('f) - (1::nat)) / 2 ^ LENGTH('f)" 
               using a b exp_c_exp_b_min_1 by(simp add:abs_valof_eq2)
@@ -659,6 +648,7 @@ lemma closest_means_ulp_0_5:
               (2 ^ LENGTH('f) + (2::nat) ^ LENGTH('f) - (1::nat)) / 2 ^ LENGTH('f) + 
               (2::real) ^ exponent c  / 2 ^ bias TYPE(('e, 'f) float) / 2 ^ LENGTH('f)"
         by (metis (no_types, lifting) divide_divide_eq_left power_add)
+
       
       then have "\<bar>a\<bar> \<le> (((2::real) ^ (exponent c) / 2 ^ bias TYPE(('e, 'f) float)) *
               (2 ^ LENGTH('f) + (2::nat) ^ LENGTH('f) - (1::nat)) + 
@@ -687,9 +677,7 @@ lemma closest_means_ulp_0_5:
         with a b exp_c_exp_b_min_1 abs_a_le have "\<bar>valof b - a\<bar> \<ge> (2 ^ (exponent b) / 2 ^ bias TYPE(('e, 'f) float)) *
               (2 ^ LENGTH('f) + 1) / 2 ^ LENGTH('f) - (2::real) ^ (exponent b) / 2 ^ bias TYPE(('e, 'f) float) *
               2 ^ LENGTH('f) / 2 ^ LENGTH('f)" by force
-        with a b exp_c_exp_b_min_1 abs_a_le have "\<bar>valof b - a\<bar> \<ge> (2 ^ (exponent b) / 2 ^ bias TYPE(('e, 'f) float))
-              / 2 ^ LENGTH('f)" by argo
-        with a b have "\<bar>valof b - a\<bar> \<ge> ulp b" by(simp add:ulp_equivelance ulp_divisor_rewrite bias_def)
+        with a b have "\<bar>valof b - a\<bar> \<ge> ulp b" apply(simp add:ulp_equivelance ulp_divisor_rewrite bias_def) by argo
         moreover from ulp_positive have "0.5*ulp b < ulp b" by auto
         ultimately have "False" using assms ulp_accuracy_def ulp_positive by force
       } note to_disprove_false3 = this
@@ -701,6 +689,7 @@ lemma closest_means_ulp_0_5:
         using exp_c_exp_b_min_1 by metis
       with a b exp_c_exp_b_min_1 have diff_is_ulp_c: "\<bar>valof b - valof c\<bar> = ulp c" by(simp add:ulp_equivelance ulp_divisor_rewrite bias_def)
       
+
       from abs_a_le a b exp_c_exp_b_min_1 val_b_eq have upper_bound: "\<bar>a\<bar> \<le> \<bar>valof b\<bar>" by fastforce
       from assms ulp_accuracy_def have "\<bar>valof b - a\<bar> \<le> 0.5*ulp b" by blast
       with a b ulp_b_2_ulp_c have "\<bar>valof b\<bar> - ulp c \<le> \<bar>a\<bar>" by auto
