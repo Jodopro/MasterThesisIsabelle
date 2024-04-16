@@ -129,9 +129,9 @@ proof -
   then have all_x: "\<forall>x. x * real (2 ^ LENGTH('f) - Suc 0) = x*2 ^ LENGTH('f) - x"
     by (simp add: factor_minus of_nat_diff)
   from all_x have x_2: "2 * 2 ^ LENGTH('f) - 2 * real (2 ^ LENGTH('f) - Suc 0) = 2" by simp
-  from all_x have x_exp: "2 ^ IEEE.exponent x * 2 ^ LENGTH('f) - 2 ^ IEEE.exponent x * real (2 ^ LENGTH('f) - Suc 0) = 2 ^ IEEE.exponent x" by simp
-  from x_2 x_exp show "(IEEE.exponent x = 0 \<longrightarrow> 2 * 2 ^ LENGTH('f) - 2 * real (2 ^ LENGTH('f) - Suc 0) = 2) \<and>
-    (0 < IEEE.exponent x \<longrightarrow> 2 ^ IEEE.exponent x * 2 ^ LENGTH('f) - 2 ^ IEEE.exponent x * real (2 ^ LENGTH('f) - Suc 0) = 2 ^ IEEE.exponent x)" by fastforce
+  from all_x have x_exp: "2 ^ exponent x * 2 ^ LENGTH('f) - 2 ^ exponent x * real (2 ^ LENGTH('f) - Suc 0) = 2 ^ exponent x" by simp
+  from x_2 x_exp show "(exponent x = 0 \<longrightarrow> 2 * 2 ^ LENGTH('f) - 2 * real (2 ^ LENGTH('f) - Suc 0) = 2) \<and>
+    (0 < exponent x \<longrightarrow> 2 ^ exponent x * 2 ^ LENGTH('f) - 2 ^ exponent x * real (2 ^ LENGTH('f) - Suc 0) = 2 ^ exponent x)" by fastforce
 qed
 
 lemma ulp_increase_abs_diff:
@@ -150,11 +150,11 @@ proof -
   then have all_x: "\<forall>x. x * real (2 ^ LENGTH('f) - Suc 0) = x*2 ^ LENGTH('f) - x"
     by (simp add: factor_minus of_nat_diff)
   from all_x have x_2: "2 * 2 ^ LENGTH('f) - 2 * real (2 ^ LENGTH('f) - Suc 0) = 2" by simp
-  from all_x have x_exp: "2 ^ IEEE.exponent x * 2 ^ LENGTH('f) - 2 ^ IEEE.exponent x * real (2 ^ LENGTH('f) - Suc 0) = 2 ^ IEEE.exponent x" by simp
-  from x_2 x_exp show "(IEEE.exponent x = (0::nat) \<longrightarrow> (2::real) * (2::real) ^ LENGTH('f) - (2::real) * real ((2::nat) ^ LENGTH('f) - Suc (0::nat)) = (2::real)) \<and>
-    ((0::nat) < IEEE.exponent x \<longrightarrow>
-     (2::real) ^ IEEE.exponent x * (2::real) ^ LENGTH('f) - (2::real) ^ IEEE.exponent x * real ((2::nat) ^ LENGTH('f) - Suc (0::nat)) =
-     (2::real) ^ IEEE.exponent x)" by fastforce
+  from all_x have x_exp: "2 ^ exponent x * 2 ^ LENGTH('f) - 2 ^ exponent x * real (2 ^ LENGTH('f) - Suc 0) = 2 ^ exponent x" by simp
+  from x_2 x_exp show "(exponent x = (0::nat) \<longrightarrow> (2::real) * (2::real) ^ LENGTH('f) - (2::real) * real ((2::nat) ^ LENGTH('f) - Suc (0::nat)) = (2::real)) \<and>
+    ((0::nat) < exponent x \<longrightarrow>
+     (2::real) ^ exponent x * (2::real) ^ LENGTH('f) - (2::real) ^ exponent x * real ((2::nat) ^ LENGTH('f) - Suc (0::nat)) =
+     (2::real) ^ exponent x)" by fastforce
 qed
 
 lemma real_mult:
@@ -228,7 +228,7 @@ shows "(valof (ulp_increase c) \<le> a \<and> ulp_accuracy a (ulp_increase c) \<
     with ulp_accuracy_def ulp_increase_distance have "valof (ulp_increase c) \<le> a \<Longrightarrow> ulp_accuracy a (ulp_increase c) \<bar>x - (1::real)\<bar>" by fast
     then show "valof (ulp_increase c) \<le> a \<Longrightarrow>
     valof (ulp_increase c) \<le> a \<and> ulp_accuracy a (ulp_increase c) \<bar>x - (1::real)\<bar> \<or>
-    a < valof (ulp_increase c) \<and> (\<exists>f::('e, 'f) IEEE.float. ulp_accuracy a f ((5::real) / (10::real)))" by blast 
+    a < valof (ulp_increase c) \<and> (\<exists>f::('e, 'f) float. ulp_accuracy a f ((5::real) / (10::real)))" by blast 
   qed
   subgoal
   proof -
@@ -256,7 +256,7 @@ shows "(valof (ulp_increase c) \<le> a \<and> ulp_accuracy a (ulp_increase c) \<
     with ulp_accuracy_increase have "\<not> valof (ulp_increase c) \<le> a \<Longrightarrow> (\<exists>f::('e, 'f) float. ulp_accuracy a f (5 / 10))" by force
     then show "\<not> valof (ulp_increase c) \<le> a \<Longrightarrow>
     valof (ulp_increase c) \<le> a \<and> ulp_accuracy a (ulp_increase c) \<bar>x - (1::real)\<bar> \<or>
-    a < valof (ulp_increase c) \<and> (\<exists>f::('e, 'f) IEEE.float. ulp_accuracy a f ((5::real) / (10::real)))" by argo
+    a < valof (ulp_increase c) \<and> (\<exists>f::('e, 'f) float. ulp_accuracy a f ((5::real) / (10::real)))" by argo
    qed
   done
 
@@ -300,22 +300,22 @@ proof(induction y arbitrary: x b)
 next
   case (Suc y)
   have implied_from_idk_helper: "real (Suc (y::nat)) - (5::real) / (10::real) \<le> (x::real) \<and>
-  x < real (Suc y) + (5::real) / (10::real) \<and> ulp_accuracy (a::real) (b::('e, 'f) IEEE.float) \<bar>x\<bar> \<and> valof b \<le> a \<and> sign b = (0::nat) \<longrightarrow> (valof (ulp_increase b) \<le> a \<and> ulp_accuracy a (ulp_increase b) \<bar>x-1\<bar>) \<or> (valof (ulp_increase b) > a \<and> (\<exists>f::('e, 'f) float. ulp_accuracy a f 0.5))" 
+  x < real (Suc y) + (5::real) / (10::real) \<and> ulp_accuracy (a::real) (b::('e, 'f) float) \<bar>x\<bar> \<and> valof b \<le> a \<and> sign b = (0::nat) \<longrightarrow> (valof (ulp_increase b) \<le> a \<and> ulp_accuracy a (ulp_increase b) \<bar>x-1\<bar>) \<or> (valof (ulp_increase b) > a \<and> (\<exists>f::('e, 'f) float. ulp_accuracy a f 0.5))" 
     using ulp_0_5_exists0 assms by blast
   
-  from implied_from_idk_helper have ulp_increase_exists: "real (Suc y) - (5::real) / (10::real) \<le> x \<and> x < real (Suc y) + (5::real) / (10::real) \<and> ulp_accuracy (a::real) (b::('e, 'f) IEEE.float) \<bar>x\<bar> \<and> valof b \<le> a \<and> sign b = (0::nat) \<longrightarrow> valof (ulp_increase b) \<le> a \<longrightarrow> ulp_accuracy a (ulp_increase b) \<bar>x-1\<bar>" by linarith
+  from implied_from_idk_helper have ulp_increase_exists: "real (Suc y) - (5::real) / (10::real) \<le> x \<and> x < real (Suc y) + (5::real) / (10::real) \<and> ulp_accuracy (a::real) (b::('e, 'f) float) \<bar>x\<bar> \<and> valof b \<le> a \<and> sign b = (0::nat) \<longrightarrow> valof (ulp_increase b) \<le> a \<longrightarrow> ulp_accuracy a (ulp_increase b) \<bar>x-1\<bar>" by linarith
   then obtain b2 where b2_exists: "b2 = (ulp_increase b)" by blast
   from Suc have "real (y::nat) - (5::real) / (10::real) \<le> ((x-1)::real) \<and>
   (x-1) < real y + (5::real) / (10::real) \<and> ulp_accuracy (a::real) b2 \<bar>(x-1)\<bar> \<and> valof b2 \<le> a \<and> sign b2 = (0::nat) \<longrightarrow>
-  (\<exists>b::('e, 'f) IEEE.float. ulp_accuracy a b ((5::real) / (10::real)))" by blast
+  (\<exists>b::('e, 'f) float. ulp_accuracy a b ((5::real) / (10::real)))" by blast
   with b2_exists ulp_increase_sign have "real (y::nat) - (5::real) / (10::real) \<le> ((x-1)::real) \<and>
   (x-1) < real y + (5::real) / (10::real) \<and> ulp_accuracy (a::real) b2 \<bar>(x-1)\<bar> \<and> valof b \<le> a \<and> sign b = (0::nat) \<longrightarrow> valof (ulp_increase b) \<le> a \<longrightarrow>
-  (\<exists>b::('e, 'f) IEEE.float. ulp_accuracy a b ((5::real) / (10::real)))" by metis
+  (\<exists>b::('e, 'f) float. ulp_accuracy a b ((5::real) / (10::real)))" by metis
     
   then have with_Suc: "real (Suc y::nat) - (5::real) / (10::real) \<le> (x::real) \<and>
   x < real (Suc y) + (5::real) / (10::real) \<and> ulp_accuracy (a::real) b2 \<bar>(x-1)\<bar> \<and> valof b \<le> a \<and> sign b = (0::nat) \<longrightarrow> valof (ulp_increase b) \<le> a \<longrightarrow>
-  (\<exists>b::('e, 'f) IEEE.float. ulp_accuracy a b ((5::real) / (10::real)))" by fastforce
-  then have "real (Suc y) - (5::real) / (10::real) \<le> x \<and> x < real (Suc y) + (5::real) / (10::real) \<and> ulp_accuracy a b \<bar>x\<bar> \<and> valof b \<le> a \<and> sign b = (0::nat) \<longrightarrow> (\<exists>b::('e, 'f) IEEE.float. ulp_accuracy a b ((5::real) / (10::real)))"
+  (\<exists>b::('e, 'f) float. ulp_accuracy a b ((5::real) / (10::real)))" by fastforce
+  then have "real (Suc y) - (5::real) / (10::real) \<le> x \<and> x < real (Suc y) + (5::real) / (10::real) \<and> ulp_accuracy a b \<bar>x\<bar> \<and> valof b \<le> a \<and> sign b = (0::nat) \<longrightarrow> (\<exists>b::('e, 'f) float. ulp_accuracy a b ((5::real) / (10::real)))"
     using b2_exists ulp_increase_exists
     using implied_from_idk_helper by blast
 
@@ -491,7 +491,7 @@ lemma closest_mean_ulp_0_5_helper_rewrite_to_ulp:
               (2 ^ LENGTH('f)) / 2 ^ LENGTH('f) - (2 ^ (exponent c) / 2 ^ bias TYPE(('e, 'f) float)) *
               (2 ^ LENGTH('f) + (2::nat) ^ LENGTH('f) - (1::nat)) / 2 ^ LENGTH('f)"
      and "exponent c = exponent b - (1::nat)"
-     and a:"\<not> IEEE.exponent b \<le> IEEE.exponent c" and b:"IEEE.exponent b \<noteq> (1::nat)"
+     and a:"\<not> exponent b \<le> exponent c" and b:"exponent b \<noteq> (1::nat)"
    shows "\<bar>valof b - valof c\<bar> = (2 ^ (exponent c) / 2 ^ bias TYPE(('e, 'f) float)) / 2 ^ LENGTH('f)"
 proof -
   from assms have "\<bar>valof b - valof c\<bar> = (2 ^ (exponent c + 1) / 2 ^ bias TYPE(('e, 'f) float)) *
@@ -512,20 +512,20 @@ proof -
 
 lemma closest_means_ulp_0_5:
   assumes "ulp_accuracy a (b::('e,'f) float) 0.5" and "LENGTH('f)> 1"
-  and "(\<forall>(b::('e,'f) float). b \<in> {a. is_finite a} \<longrightarrow> \<bar>valof (c::('e,'f) float) - a\<bar> \<le> \<bar>valof b - a\<bar>)"
+  and "(\<forall>(d::('e,'f) float). d \<in> {a. is_finite a} \<longrightarrow> \<bar>valof (c::('e,'f) float) - a\<bar> \<le> \<bar>valof d - a\<bar>)"
   and "is_finite c"
   shows "ulp_accuracy a c 0.5"
   apply (cases "exponent b \<le> exponent c \<or> exponent b = 1")
   subgoal proof -
-    from ulp_equivelance have ulp_same: "\<not> IEEE.exponent b \<le> IEEE.exponent c \<Longrightarrow> IEEE.exponent b = (1::nat) \<Longrightarrow> ulp b = ulp c"
+    from ulp_equivelance have ulp_same: "\<not> exponent b \<le> exponent c \<Longrightarrow> exponent b = (1::nat) \<Longrightarrow> ulp b = ulp c"
       by (metis max.absorb1 max.commute nat_le_linear)
     moreover have "exponent b \<le> exponent c \<longrightarrow> ulp b \<le> ulp c" by (auto simp add:ulp_equivelance divide_right_mono)
-    ultimately have "IEEE.exponent b \<le> IEEE.exponent c \<or> IEEE.exponent b = (1::nat) \<Longrightarrow> ulp b \<le> ulp c " by argo
-    then show "IEEE.exponent b \<le> IEEE.exponent c \<or> IEEE.exponent b = (1::nat) \<Longrightarrow> ulp_accuracy a c ((5::real) / (10::real))" using assms apply(simp add:ulp_accuracy_def) by force 
+    ultimately have "exponent b \<le> exponent c \<or> exponent b = (1::nat) \<Longrightarrow> ulp b \<le> ulp c " by argo
+    then show "exponent b \<le> exponent c \<or> exponent b = (1::nat) \<Longrightarrow> ulp_accuracy a c ((5::real) / (10::real))" using assms apply(simp add:ulp_accuracy_def) by force 
   qed
   subgoal proof -
     {
-      assume a:"\<not> IEEE.exponent b \<le> IEEE.exponent c" and b:"IEEE.exponent b \<noteq> (1::nat)"
+      assume a:"\<not> exponent b \<le> exponent c" and b:"exponent b \<noteq> (1::nat)"
       from a b have exp_not_0: "exponent b \<noteq> 0" by simp
       from sign_valof_diff have "sign b \<noteq> sign c \<Longrightarrow> \<bar>valof c - a\<bar> \<ge> \<bar>valof b\<bar> + \<bar>valof c\<bar> - \<bar>valof b - a\<bar>"
         by (smt (verit))
@@ -536,7 +536,7 @@ lemma closest_means_ulp_0_5:
     } note sign_equality = this
 
     {
-      assume a:"\<not> IEEE.exponent b \<le> IEEE.exponent c" and b:"IEEE.exponent b \<noteq> (1::nat)"
+      assume a:"\<not> exponent b \<le> exponent c" and b:"exponent b \<noteq> (1::nat)"
       assume to_disprove: "exponent c < exponent b - 1"
 
       {
@@ -564,7 +564,7 @@ lemma closest_means_ulp_0_5:
         have step_1: "((2^LENGTH('f))-1)*(2 ^ (exponent b-1) / 2 ^ (bias TYPE(('e, 'f) float)+LENGTH('f))) > ((2::real) ^ (exponent b - 1) / (2::real) ^ (bias TYPE(('e, 'f) float) + LENGTH('f)))" 
           apply(simp add:div_less divide_less_eq frac_less) 
           using assms power_2_at_least_4 by fastforce
-        from assms ulp_accuracy_def bias_def ulp_equivelance a half_times_power have "\<bar>valof b - a\<bar> \<le> 0.5*((2::real) ^ max (IEEE.exponent b) (1::nat) / (2::real) ^ (bias TYPE(('e, 'f) float) + LENGTH('f)))" by metis
+        from assms ulp_accuracy_def bias_def ulp_equivelance a half_times_power have "\<bar>valof b - a\<bar> \<le> 0.5*((2::real) ^ max (exponent b) (1::nat) / (2::real) ^ (bias TYPE(('e, 'f) float) + LENGTH('f)))" by metis
         with a half_times_power have val_b_min_a: "\<bar>valof b - a\<bar> \<le> ((2::real) ^ (exponent b - 1) / (2::real) ^ (bias TYPE(('e, 'f) float) + LENGTH('f)))" by auto
         with to_disprove a b val_b_simplified val_c_simplified have "\<bar>valof c - a\<bar> \<ge> (2^LENGTH('f)) * (2 ^ (exponent b-1) / 2 ^ (bias TYPE(('e, 'f) float)+LENGTH('f))) - ((2::real) ^ (exponent b - 1) / (2::real) ^ (bias TYPE(('e, 'f) float) + LENGTH('f)))"
           apply (simp add: power_add) by argo
@@ -579,7 +579,7 @@ lemma closest_means_ulp_0_5:
     
 
     {
-      assume a:"\<not> IEEE.exponent b \<le> IEEE.exponent c" and b:"IEEE.exponent b \<noteq> (1::nat)"
+      assume a:"\<not> exponent b \<le> exponent c" and b:"exponent b \<noteq> (1::nat)"
       
       from a b have "\<bar>\<bar>valof b\<bar> - \<bar>valof c\<bar>\<bar> = \<bar>valof b - valof c\<bar>" apply(cases "sign b = 0") by (simp_all add: sign_pos sign_equality sign_cases valof_nonpos valof_nonneg)
       moreover from a b exp_c_exp_b_min_1 abs_valof_ge_exp_ge have val_b_g_val_c: "\<bar>valof b\<bar> > \<bar>valof c\<bar>"
@@ -639,7 +639,7 @@ lemma closest_means_ulp_0_5:
       with ulp_b_2_ulp_c a b have "\<bar>a\<bar> \<le> \<bar>valof c\<bar> + ulp c" by linarith
       with val_c_eq ulp_equivelance have "\<bar>a\<bar> \<le> (2 ^ (exponent c) / 2 ^ bias TYPE(('e, 'f) float)) *
               (2 ^ LENGTH('f) + (2::nat) ^ LENGTH('f) - (1::nat)) / 2 ^ LENGTH('f) + 
-              (2::real) ^ max (IEEE.exponent c) (1::nat) / (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f))" by metis
+              (2::real) ^ max (exponent c) (1::nat) / (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f))" by metis
       with a b exp_c_exp_b_min_1 have "\<bar>a\<bar> \<le> ((2::real) ^ (exponent c) / 2 ^ bias TYPE(('e, 'f) float)) *
               (2 ^ LENGTH('f) + (2::nat) ^ LENGTH('f) - (1::nat)) / 2 ^ LENGTH('f) + 
               (2::real) ^ exponent c / (2::real) ^ ((2::nat) ^ (LENGTH('e) - (1::nat)) - (1::nat) + LENGTH('f))"
@@ -685,7 +685,7 @@ lemma closest_means_ulp_0_5:
       from a b have val_b_eq: "\<bar>valof b\<bar> = (2 ^ (exponent b) / 2 ^ bias TYPE(('e, 'f) float)) *
               (2 ^ LENGTH('f)) / 2 ^ LENGTH('f)" by(simp add:abs_valof_eq2 frac_b)
       with val_b_min_val_c val_c_eq a b assms have 
-        "\<bar>valof b - valof c\<bar> = (2::real) ^ exponent c / (2::real) ^ bias TYPE(('e,'f) IEEE.float) / (2::real) ^ LENGTH('f)" using closest_mean_ulp_0_5_helper_rewrite_to_ulp
+        "\<bar>valof b - valof c\<bar> = (2::real) ^ exponent c / (2::real) ^ bias TYPE(('e,'f) float) / (2::real) ^ LENGTH('f)" using closest_mean_ulp_0_5_helper_rewrite_to_ulp
         using exp_c_exp_b_min_1 by metis
       with a b exp_c_exp_b_min_1 have diff_is_ulp_c: "\<bar>valof b - valof c\<bar> = ulp c" by(simp add:ulp_equivelance ulp_divisor_rewrite bias_def)
       
@@ -704,7 +704,7 @@ lemma closest_means_ulp_0_5:
       moreover from assms ulp_accuracy_def have "\<bar>valof b - a\<bar> \<ge> \<bar>valof c - a\<bar>" by blast
       ultimately have "\<bar>valof c - a\<bar> \<le> 0.5*ulp c" using ulp_positive diff_is_ulp_c by argo
     }
-    with assms ulp_accuracy_def show "\<not> (IEEE.exponent b \<le> IEEE.exponent c \<or> IEEE.exponent b = (1::nat)) \<Longrightarrow> ulp_accuracy a c 0.5" by blast
+    with assms ulp_accuracy_def show "\<not> (exponent b \<le> exponent c \<or> exponent b = (1::nat)) \<Longrightarrow> ulp_accuracy a c 0.5" by blast
     (*526-856*)
     (*new start 501*)
   qed
@@ -712,9 +712,9 @@ lemma closest_means_ulp_0_5:
 
 lemma rounding_0_5_ulp: 
   assumes "\<bar>a\<bar> < threshold TYPE(('e, 'f)float)" 
-          "a_r = ((round To_nearest a)::('e, 'f) float)"
-          "1 < LENGTH('e)"
-          "1 < LENGTH('f)"
+      and "a_r = ((round To_nearest a)::('e, 'f) float)"
+      and "1 < LENGTH('e)"
+      and "1 < LENGTH('f)"
         shows "ulp_accuracy a a_r 0.5"
   proof -
   from is_finite_nonempty rounded_threshold_is_finite have fin_a_r: "is_finite a_r"
