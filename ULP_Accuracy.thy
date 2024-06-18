@@ -582,7 +582,7 @@ lemma closest_means_ulp_0_5:
       assume a:"\<not> exponent b \<le> exponent c" and b:"exponent b \<noteq> (1::nat)"
       
       from a b have "\<bar>\<bar>valof b\<bar> - \<bar>valof c\<bar>\<bar> = \<bar>valof b - valof c\<bar>" apply(cases "sign b = 0") by (simp_all add: sign_pos sign_equality sign_cases valof_nonpos valof_nonneg)
-      moreover from a b exp_c_exp_b_min_1 abs_valof_ge_exp_ge have val_b_g_val_c: "\<bar>valof b\<bar> > \<bar>valof c\<bar>"
+      moreover from a abs_valof_ge_exp_ge have val_b_g_val_c: "\<bar>valof b\<bar> > \<bar>valof c\<bar>"
         using linorder_not_less by blast
       ultimately have val_b_min_val_c: "\<bar>valof b - valof c\<bar> = \<bar>valof b\<bar> - \<bar>valof c\<bar>" 
         by argo
@@ -715,7 +715,7 @@ lemma rounding_0_5_ulp:
       and "a_r = ((round To_nearest a)::('e, 'f) float)"
       and "1 < LENGTH('e)"
       and "1 < LENGTH('f)"
-        shows "ulp_accuracy a a_r 0.5"
+    shows "ulp_accuracy a a_r 0.5"
   proof -
   from is_finite_nonempty rounded_threshold_is_finite have fin_a_r: "is_finite a_r"
     using assms(1) assms(2) by blast 
